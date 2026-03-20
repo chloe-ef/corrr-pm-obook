@@ -5,8 +5,9 @@
 
 library(data.table)
 
-import_dir <- "~/Documents/data/corrr/390_paper/import"
-build_dir  <- "~/Documents/data/corrr/390_paper/build"
+data_root  <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+import_dir <- file.path(data_root, "import")
+build_dir  <- file.path(data_root, "build")
 
 markets <- readRDS(file.path(build_dir, "market_classification.rds"))
 trades  <- readRDS(file.path(import_dir, "dome_trades_combined.rds"))

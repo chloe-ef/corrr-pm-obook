@@ -5,8 +5,9 @@
 
 library(data.table)
 
-build_dir    <- "~/Documents/data/corrr/390_paper/build"
-analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
+data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+build_dir    <- file.path(data_root, "build")
+analysis_dir <- file.path(data_root, "analysis")
 
 cat("=== FAMA-FRENCH 3-FACTOR ALPHA: SHORT STRATEGY ===\n\n")
 

@@ -9,7 +9,8 @@
 
 library(data.table)
 
-build_dir <- "~/Documents/data/corrr/390_paper/build"
+data_root <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+build_dir <- file.path(data_root, "build")
 
 events <- readRDS(file.path(build_dir, "dome_eps_events.rds"))
 ibes   <- readRDS(file.path(build_dir, "ibes_data.rds"))

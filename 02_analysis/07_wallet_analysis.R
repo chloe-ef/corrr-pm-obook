@@ -11,9 +11,10 @@
 library(data.table)
 library(ggplot2)
 
-import_dir   <- "~/Documents/data/corrr/390_paper/import"
-build_dir    <- "~/Documents/data/corrr/390_paper/build"
-analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
+data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+import_dir   <- file.path(data_root, "import")
+build_dir    <- file.path(data_root, "build")
+analysis_dir <- file.path(data_root, "analysis")
 
 cat("=== WALLET-LEVEL SMART MONEY ANALYSIS ===\n\n")
 

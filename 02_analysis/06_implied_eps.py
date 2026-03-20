@@ -32,8 +32,9 @@ from scipy.stats import t as t_dist
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # ─── Paths ────────────────────────────────────────────────────────────────
-BUILD_DIR = os.path.expanduser("~/Documents/data/corrr/390_paper/build")
-ANALYSIS_DIR = os.path.expanduser("~/Documents/data/corrr/390_paper/analysis")
+_data_root = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
+BUILD_DIR = os.path.join(_data_root, "build")
+ANALYSIS_DIR = os.path.join(_data_root, "analysis")
 
 os.makedirs(ANALYSIS_DIR, exist_ok=True)
 

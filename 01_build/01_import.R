@@ -6,9 +6,9 @@
 #   3. Rebuilding market_classification.rds from dome_trades_combined
 #   4. Rebuilding hourly_market_probabilities.rds from dome_trades_combined
 #
-# Input:  ~/Documents/data/corrr/390_exploration/build/dome_trades_combined.rds
-#         ~/Documents/data/corrr/390_exploration/export/closed_earnings_markets.csv
-#         ~/Documents/data/corrr/390_exploration/market_slugs_masterlist.xlsx
+# Input:  <EXPLORATION_DIR>/build/dome_trades_combined.rds
+#         <EXPLORATION_DIR>/export/closed_earnings_markets.csv
+#         <EXPLORATION_DIR>/market_slugs_masterlist.xlsx
 # Output: import/dome_trades_combined.rds
 #         import/closed_earnings_markets.csv
 #         import/market_slugs_masterlist.xlsx
@@ -18,9 +18,10 @@
 library(data.table)
 library(readxl)
 
-exploration_dir <- "~/Documents/data/corrr/390_exploration"
-import_dir      <- "~/Documents/data/corrr/390_paper/import"
-build_dir       <- "~/Documents/data/corrr/390_paper/build"
+data_root       <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+exploration_dir <- Sys.getenv("EXPLORATION_DIR", file.path(dirname(data_root), "390_exploration"))
+import_dir      <- file.path(data_root, "import")
+build_dir       <- file.path(data_root, "build")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. COPY RAW INPUTS TO IMPORT/

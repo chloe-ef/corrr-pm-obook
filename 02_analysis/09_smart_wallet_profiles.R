@@ -11,7 +11,8 @@ library(httr2)
 library(jsonlite)
 library(ggplot2)
 
-analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
+data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+analysis_dir <- file.path(data_root, "analysis")
 
 cat("=== SMART WALLET DEEP DIVE VIA DOME API ===\n\n")
 

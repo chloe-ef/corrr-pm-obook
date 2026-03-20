@@ -4,7 +4,8 @@
 
 library(data.table)
 
-build_dir <- "~/Documents/data/corrr/390_paper/build"
+data_root <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
+build_dir <- file.path(data_root, "build")
 
 cat("=== PULLING FAMA-FRENCH 3-FACTOR DAILY DATA ===\n")
 
