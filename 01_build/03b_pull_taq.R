@@ -13,8 +13,7 @@ library(data.table)
 library(RPostgres)
 library(DBI)
 
-data_root <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
-build_dir <- file.path(data_root, "build")
+build_dir <- "~/Documents/data/corrr/390_paper/build"
 
 # =====================================================================
 # LOAD EVENTS + DETERMINE QUERY SCOPE

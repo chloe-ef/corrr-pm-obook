@@ -11,10 +11,9 @@
 library(data.table)
 library(ggplot2)
 
-data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
-import_dir   <- file.path(data_root, "import")
-build_dir    <- file.path(data_root, "build")
-analysis_dir <- file.path(data_root, "analysis")
+data_dir     <- "~/Documents/git/corrr/390_paper/data"
+import_dir   <- "~/Documents/data/corrr/390_paper/import"  # dome_trades_combined.rds (too large to freeze)
+analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
 
 cat("=== WALLET-LEVEL SMART MONEY ANALYSIS ===\n\n")
 
@@ -23,8 +22,8 @@ cat("=== WALLET-LEVEL SMART MONEY ANALYSIS ===\n\n")
 # ═══════════════════════════════════════════════════════════════════════════
 
 trades <- readRDS(file.path(import_dir, "dome_trades_combined.rds"))
-events <- readRDS(file.path(build_dir, "dome_eps_events.rds"))
-panel  <- readRDS(file.path(build_dir, "event_panel.rds"))
+events <- readRDS(file.path(data_dir, "dome_eps_events.rds"))
+panel  <- readRDS(file.path(data_dir, "event_panel.rds"))
 
 # Filter trades to beat/miss earnings markets
 earnings_slugs <- events$market_slug

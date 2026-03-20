@@ -5,15 +5,14 @@
 
 library(data.table)
 
-data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
-build_dir    <- file.path(data_root, "build")
-analysis_dir <- file.path(data_root, "analysis")
+data_dir     <- "~/Documents/git/corrr/390_paper/data"
+analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
 
 cat("=== FAMA-FRENCH 3-FACTOR ALPHA: SHORT STRATEGY ===\n\n")
 
-panel <- readRDS(file.path(build_dir, "event_panel.rds"))
-taq   <- readRDS(file.path(build_dir, "equity_daily_returns.rds"))
-ff    <- readRDS(file.path(build_dir, "ff_daily.rds"))
+panel <- readRDS(file.path(data_dir, "event_panel.rds"))
+taq   <- readRDS(file.path(data_dir, "equity_daily_returns.rds"))
+ff    <- readRDS(file.path(data_dir, "ff_daily.rds"))
 
 # Identify return column in TAQ
 ret_col <- intersect(c("stock_return", "ret", "daily_return", "return"), names(taq))

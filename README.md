@@ -1,4 +1,4 @@
-# Minority Report: Contrarian Traders, Prediction Markets, and the Return of Post-Earnings Drift
+# 390_paper — Minority Report: Contrarian Traders, Prediction Markets, and the Return of Post-Earnings Drift
 
 Does prediction market crowd flow reveal independent information about earnings outcomes beyond analyst consensus?
 
@@ -24,12 +24,14 @@ All processed data files used in the paper are committed in the `data/` director
 ### Quick start (analysis only, no credentials needed)
 
 ```bash
-# Set DATA_DIR to where you want working data (build/ and analysis/ subdirs)
-export DATA_DIR=/path/to/your/working/data
+cd ~/Documents/git/corrr/390_paper
 
-mkdir -p "$DATA_DIR/build" "$DATA_DIR/analysis"
-cp data/*.rds "$DATA_DIR/build/"
-cp data/*.csv "$DATA_DIR/analysis/"
+# Copy frozen data to your dataLAN build directory
+# (or update script paths to read from data/ directly)
+mkdir -p ~/Documents/data/corrr/390_paper/build
+mkdir -p ~/Documents/data/corrr/390_paper/analysis
+cp data/*.rds ~/Documents/data/corrr/390_paper/build/
+cp data/*.csv ~/Documents/data/corrr/390_paper/analysis/
 
 # Run analysis scripts (no WRDS or API credentials required)
 Rscript 02_analysis/00_data_audit.R
@@ -43,8 +45,7 @@ python 02_analysis/06_implied_eps.py
 Rscript 02_analysis/07_wallet_analysis.R
 Rscript 02_analysis/08_ff_alpha.R
 
-# Compile paper (copy figures into 03_paper/figures/ first)
-cp "$DATA_DIR/analysis"/fig_*.pdf 03_paper/figures/
+# Compile paper
 cd 03_paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 ```
 
@@ -77,23 +78,29 @@ cd data && shasum -a 256 -c SHA256SUMS
 
 ## Directory Structure
 
-Scripts read/write data from a `DATA_DIR` environment variable. If unset, scripts default to `data/` in the working directory.
+This project uses a **dataLAN/codeLAN separation**: scripts live in the git repo, while working data and output files live in a parallel directory outside the repo. The frozen `data/` directory in the repo provides a reproducible starting point.
 
 ```
-corrr-pm-obook/                      # this repo
+~/Documents/git/corrr/390_paper/     # codeLAN (this repo)
 ├── 01_build/                        # Build scripts (for re-pulling from source)
 ├── 02_analysis/                     # Analysis scripts
 ├── 03_paper/                        # LaTeX source
-│   └── figures/                     # Copy output figures here for compilation
+├── 04_citations/                    # Citation notes
 ├── data/                            # Frozen processed data (committed)
 ├── requirements.txt                 # Python dependencies
 └── README.md
 
-$DATA_DIR/                           # working directory (set via env var)
+~/Documents/data/corrr/390_paper/    # dataLAN (working directory, not in git)
 ├── build/                           # Working .rds files (copy from data/)
 ├── analysis/                        # Figures + CSV output
 └── import/                          # Raw trade data (dome_trades_combined.rds)
 ```
+
+### Adapting paths for your machine
+
+All R scripts reference `~/Documents/data/corrr/390_paper/build` and `~/Documents/data/corrr/390_paper/analysis` for reading/writing data. The LaTeX file uses absolute paths to `~/Documents/data/corrr/390_paper/analysis/` for `\includegraphics`. To adapt:
+
+> Search all `.R`, `.py`, and `.tex` files under `390_paper/` for the path `~/Documents/data/corrr/390_paper` (and its expanded form `/Users/chloe_1.0/Documents/data/corrr/390_paper`). Replace every occurrence with `<YOUR_DATA_DIR>`, where `<YOUR_DATA_DIR>` is the absolute path to a directory on your machine with `build/`, `analysis/`, and `import/` subdirectories. In `.tex` files, also update `\includegraphics` paths accordingly.
 
 ## Prerequisites
 
@@ -140,4 +147,5 @@ Compile with: `pdflatex main && bibtex main && pdflatex main && pdflatex main`
 - Winsorize returns at 2nd/98th percentile
 - One row per market (both GAAP and non-GAAP kept if same ticker/date)
 - Equity returns from WRDS TAQ 5-min bars aggregated to daily
+- Data and code kept in separate directory trees (dataLAN/codeLAN)
 - Processed data frozen and committed for reproducibility

@@ -6,11 +6,10 @@ library(data.table)
 library(ggplot2)
 library(fixest)
 
-data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
-build_dir    <- file.path(data_root, "build")
-analysis_dir <- file.path(data_root, "analysis")
+data_dir     <- "~/Documents/git/corrr/390_paper/data"
+analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
 
-panel <- readRDS(file.path(build_dir, "event_panel.rds"))
+panel <- readRDS(file.path(data_dir, "event_panel.rds"))
 p <- panel[!is.na(actual_eps) & !is.na(consensus_mean) & !is.na(eps_target)]
 cat("Surprise decomposition sample:", nrow(p), "events\n")
 
@@ -174,7 +173,7 @@ results$signed_errors <- list(
 # Figure: PM-Implied EPS vs Analyst Consensus — Forecast Error Comparison
 # Loads implied EPS from 06_implied_eps.py output and plots signed errors
 # for the crowd's implied point estimate vs the analyst consensus.
-implied <- fread(file.path(analysis_dir, "implied_eps_results.csv"))
+implied <- fread(file.path(data_dir, "implied_eps_results.csv"))
 implied <- implied[!is.na(implied_eps_t) & !is.na(actual_eps) & !is.na(consensus_mean)]
 
 err_long <- rbindlist(list(
@@ -346,7 +345,7 @@ cat("\n=== EPS ATTRIBUTION WATERFALL ===\n")
 
 # Load implied EPS results (already loaded as `implied` above)
 # Merge trailing median surprise from ibes_history
-history <- readRDS(file.path(build_dir, "ibes_history.rds"))
+history <- readRDS(file.path(data_dir, "ibes_history.rds"))
 setDT(history)
 history <- history[!is.na(surprise)]
 

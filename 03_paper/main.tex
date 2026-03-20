@@ -422,7 +422,7 @@ However, the crowd's accuracy is not simply a mechanical exploitation of the wal
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/fig_eps_waterfall.pdf}
+\includegraphics[width=0.85\textwidth]{/Users/chloe_1.0/Documents/data/corrr/390_paper/analysis/fig_eps_waterfall.pdf}
 \caption[EPS Attribution]{Waterfall decomposition of the \$0.53 median gap between analyst consensus and actual EPS for non-GAAP events ($n = 205$). The historical bias component (\$0.05, 9\%) is each firm's trailing eight-quarter median surprise, the predictable portion of the analyst walk-down. The PM-implied adjustment (\$0.10, 19\%) is the crowd's implied EPS above that bias-corrected baseline, derived by inverting the beat probability through a Student's $t$ distribution. The residual (\$0.38, 72\%) is what neither history nor the crowd captured.}
 \label{fig:waterfall}
 \end{figure}
@@ -521,7 +521,7 @@ Figure~\ref{fig:drift} plots the evolution of excess returns from day 1 to day 5
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/fig_return_drift.pdf}
+\includegraphics[width=0.85\textwidth]{/Users/chloe_1.0/Documents/data/corrr/390_paper/analysis/fig_return_drift.pdf}
 \caption[Return Drift]{Post-earnings return drift from day 1 to day 5 by prediction outcome. Correctly predicted misses drift from $-$2.65\% to $-$4.88\%, a further $-$2.23\% decline. The drift in the miss category is consistent with post-earnings announcement drift \citep{bernard1989post}.}
 \label{fig:drift}
 \end{figure}
@@ -629,7 +629,7 @@ The marginal trader hypothesis holds that prediction market accuracy is not the 
 
 \subsection{Identifying Smart Money}
 
-I aggregate the 11.1 million on-chain trades to the wallet level, computing each address's hit rate (fraction of earnings markets where the wallet's net position correctly predicted the outcome), breadth (number of distinct earnings markets traded), and dollar volume. To avoid classifying noise traders as informed, I impose three sequential filters:
+I aggregate the 11.1 million on-chain trades to the wallet level, computing each address's hit rate (fraction of earnings markets where the wallet's net position correctly predicted the outcome), breadth (number of distinct earnings markets traded), and dollar volume. To avoid classifying noise traders as informed, I impose three sequential filters:\footnote{Wallets with 1--3 earnings transactions were also examined for potential insider trading. Of the 282 wallets that were both perfectly correct and traded above \$500, 98\% were active Polymarket participants trading 70+ other markets, suggesting little evidence of low-activity informed trading.}
 \begin{enumerate}
 \item \textbf{Breadth}: the wallet must have traded at least 15 distinct earnings markets, ensuring sufficient breadth for statistical evaluation of hit rates.
 \item \textbf{Volume}: the wallet's total volume must fall in the top quartile of the breadth-filtered group, ensuring that the wallet's trades are economically significant rather than trivial.

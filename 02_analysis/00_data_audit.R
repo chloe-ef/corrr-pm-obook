@@ -3,9 +3,10 @@
 
 library(data.table)
 
-data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
-build_dir    <- file.path(data_root, "build")
-analysis_dir <- file.path(data_root, "analysis")
+# Input:  frozen data in data/ (version-controlled, checksummed)
+# Output: analysis results to dataLAN working directory
+data_dir     <- "~/Documents/git/corrr/390_paper/data"
+analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
 
 cat("
 ╔══════════════════════════════════════════════════════════════════════════╗
@@ -19,9 +20,9 @@ cat("
 
 cat("\n═══ CHECK 1: LEAKY PIPELINE & NA AUDIT ═══\n\n")
 
-dome   <- readRDS(file.path(build_dir, "dome_eps_events.rds"))
-ibes   <- readRDS(file.path(build_dir, "ibes_data.rds"))
-panel  <- readRDS(file.path(build_dir, "event_panel.rds"))
+dome   <- readRDS(file.path(data_dir, "dome_eps_events.rds"))
+ibes   <- readRDS(file.path(data_dir, "ibes_data.rds"))
+panel  <- readRDS(file.path(data_dir, "event_panel.rds"))
 
 cat("Stage 1 — Dome EPS Events (after 02_parse):\n")
 cat(sprintf("  Rows: %d\n", nrow(dome)))
@@ -62,7 +63,7 @@ for (col in critical_cols) {
 }
 
 # implied_eps_t lives in the Python CSV output, not the R panel
-implied_path <- file.path(analysis_dir, "implied_eps_results.csv")
+implied_path <- file.path(data_dir, "implied_eps_results.csv")
 if (file.exists(implied_path)) {
   implied <- fread(implied_path)
   n_impl <- nrow(implied)
@@ -151,7 +152,7 @@ if (nrow(bmo_candidates) >= 3) {
 
 cat("\n\n═══ CHECK 3: STOCK SPLIT SANITY CHECK ═══\n\n")
 
-history <- readRDS(file.path(build_dir, "ibes_history.rds"))
+history <- readRDS(file.path(data_dir, "ibes_history.rds"))
 
 # Find tickers where adj_eps ≠ actual_eps (meaning a split adjustment was applied)
 history[, was_adjusted := abs(adj_eps - actual_eps) > 0.001]

@@ -32,21 +32,20 @@ from scipy.stats import t as t_dist
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # ─── Paths ────────────────────────────────────────────────────────────────
-_data_root = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
-BUILD_DIR = os.path.join(_data_root, "build")
-ANALYSIS_DIR = os.path.join(_data_root, "analysis")
+DATA_DIR = os.path.expanduser("~/Documents/git/corrr/390_paper/data")
+ANALYSIS_DIR = os.path.expanduser("~/Documents/data/corrr/390_paper/analysis")
 
 os.makedirs(ANALYSIS_DIR, exist_ok=True)
 
 # ─── Load data ────────────────────────────────────────────────────────────
 try:
     import pyreadr
-    panel = pyreadr.read_r(os.path.join(BUILD_DIR, "event_panel.rds"))[None]
+    panel = pyreadr.read_r(os.path.join(DATA_DIR, "event_panel.rds"))[None]
 except ImportError:
-    panel = pd.read_csv(os.path.join(BUILD_DIR, "event_panel.csv"))
+    panel = pd.read_csv(os.path.join(DATA_DIR, "event_panel.csv"))
 
-history_path_rds = os.path.join(BUILD_DIR, "ibes_history.rds")
-history_path_csv = os.path.join(BUILD_DIR, "ibes_history.csv")
+history_path_rds = os.path.join(DATA_DIR, "ibes_history.rds")
+history_path_csv = os.path.join(DATA_DIR, "ibes_history.csv")
 
 if os.path.exists(history_path_rds):
     history = pyreadr.read_r(history_path_rds)[None]

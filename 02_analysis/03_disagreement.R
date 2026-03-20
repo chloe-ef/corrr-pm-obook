@@ -6,11 +6,10 @@ library(data.table)
 library(ggplot2)
 library(fixest)
 
-data_root    <- Sys.getenv("DATA_DIR", file.path(getwd(), "data"))
-build_dir    <- file.path(data_root, "build")
-analysis_dir <- file.path(data_root, "analysis")
+data_dir     <- "~/Documents/git/corrr/390_paper/data"
+analysis_dir <- "~/Documents/data/corrr/390_paper/analysis"
 
-panel <- readRDS(file.path(build_dir, "event_panel.rds"))
+panel <- readRDS(file.path(data_dir, "event_panel.rds"))
 p <- panel[!is.na(actual_eps) & !is.na(consensus_mean) & !is.na(beat_prob_last)]
 cat("Disagreement sample:", nrow(p), "events\n")
 

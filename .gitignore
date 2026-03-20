@@ -1,11 +1,43 @@
+# Credentials and environment
+.Renviron
+.env
+*.env
+credentials*
+*_api_key*
+.httr-oauth
+
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# Python artifacts
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+venv/
+.venv/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# LaTeX build artifacts
 *.aux
 *.bbl
 *.blg
 *.log
 *.out
 *.synctex.gz
-__pycache__/
-.Rhistory
-.RData
-.Rproj.user
+*.fdb_latexmk
+*.fls
+texput.log
+
+# Cache directories
+cache/
