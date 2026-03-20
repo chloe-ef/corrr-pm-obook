@@ -1,0 +1,715 @@
+% main.tex
+% Compile: pdflatex main && bibtex main && pdflatex main && pdflatex main
+
+\documentclass[11pt]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{float}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{threeparttable}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  citecolor=blue!70!black,
+  urlcolor=blue!70!black
+}
+
+\onehalfspacing
+
+% --- Title ---
+\title{\Large \textbf{Minority Report: Contrarian Traders, Prediction Markets,\\and the Return of Post-Earnings Drift}\thanks{Advised by Kevin Smith, PhD, Stanford Graduate School of Business. Data provided with assistance by Kurush Dubash and Kunal Roy, founders of Dome API (acquired by Polymarket).}}
+
+\author{Chloe Feng\thanks{Stanford University Graduate School of Business. Email: chloefn@stanford.edu}}
+
+\date{February 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+Prediction markets on the Polymarket platform allow traders to bet on whether a company will beat or miss an earnings-per-share consensus target. Using 338 resolved markets matched to IBES analyst consensus forecasts, I document four findings. First, the crowd achieves a Brier score of 0.124, compared to 0.155 for a naive baseline that always predicts the sample beat rate, yielding a Brier skill score of $+$0.20. Part of this advantage reflects the crowd's ability to incorporate information during the median 20-day window between the last IBES consensus update in our academic extract and the earnings announcement---a window that often overlaps with the corporate quiet period, during which management guidance ceases and the rate of analyst revisions slows, giving prediction market participants a relative informational edge even over real-time consensus users. Second, when crowd order flow is strongly directional (top quintile of flow imbalance), the actual beat rate reaches 98.5\% (67/68 events), indicating that the intensity of directional conviction in the order flow, rather than the price level alone, identifies events where the company will beat. Third, a short-only strategy based on low beat probability ($P < 0.30$) earns $+$5.90\% by day~10 ($t = 2.88$), with positive (though not conventionally significant) Fama--French three-factor alpha and insignificant factor loadings, consistent with conditional post-earnings drift in a sample that includes large-cap names where unconditional drift is thought to have disappeared. Fourth, on-chain wallet profiling of 22 ``smart money'' addresses reveals heterogeneous archetypes, domain-specific specialists and algorithmic liquidity providers, rather than omniscient insiders. Taken together, the results suggest that a small contrarian minority drives prediction market accuracy, and that their signal is most valuable as a short-side veto: when the crowd assigns a low beat probability, shorting into earnings produces significant risk-adjusted returns over a 10-day horizon.
+
+\medskip
+\noindent
+\textbf{Keywords:} prediction markets, earnings forecasting, crowd wisdom, analyst accuracy, Polymarket, post-earnings drift, blockchain microstructure
+\end{abstract}
+
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
+
+%======================================================================
+\section{Introduction}
+%======================================================================
+
+Prediction markets aggregate dispersed information into prices by allowing traders to buy and sell contracts tied to future events \citep{wolfers2004prediction, arrow2008promise}. Following rapid growth during the 2024 U.S.\ election cycle, the Polymarket platform expanded into corporate earnings, hosting hundreds of markets where traders bet on whether a company's reported earnings per share (EPS) will exceed a threshold set by the market maker. Each market features a binary outcome (beat or miss), and the implied probability reflects the crowd's real-time assessment of the earnings surprise.
+
+These markets generate a rich microstructure. Every trade falls into one of four cells: a trader can \textit{buy} or \textit{sell} a \textit{yes} or \textit{no} token. Buying yes at \$0.80 expresses conviction that the company will beat; selling yes at that price expresses skepticism. The net balance of buy-side versus sell-side order flow, what I term \textit{flow imbalance}, provides a continuous, incentive-compatible measure of crowd conviction that goes beyond the level of the implied probability.
+
+A concrete example illustrates the mechanics. For NVIDIA's Q3 2025 earnings, the market maker sets the EPS line at \$1.25, near the analyst consensus of \$1.24. A trader who buys a Yes token at \$0.948 pays \$0.948 for the right to receive \$1.00 if NVIDIA reports EPS above \$1.25, and receives nothing otherwise. The token price implies a 94.8\% probability of beating. NVIDIA reports \$1.30; the Yes holder collects \$1.00 and earns \$0.052 per token (5.5\% return). A trader who instead bought a No token at \$0.052 ($= \$1.00 - \$0.948$) would have lost the entire stake. During the sample period, Polymarket charged no trading fees on earnings markets, so these returns are net of all costs.
+
+This paper asks three questions. First, how well calibrated is the prediction market crowd, and how does its accuracy compare to sell-side analyst consensus forecasts? The literature on prediction market accuracy \citep{wolfers2004prediction, page2012prediction} has focused on political and macroeconomic events, and recent work has begun to examine corporate earnings. \citet{gomezcram2025financial} construct a high-frequency measure of earnings expectations from Polymarket price data and find that prediction market forecasts are more accurate and less biased than analyst consensus over a September--November 2025 window. This paper extends their analysis to a larger sample (338 markets through early 2026) and, critically, moves from price-level analysis to trade-level order flow, decomposing the crowd signal into directional components that reveal which side of each trade carries information. \citet{jame2016value} and \citet{schafhautle2024crowdsourced} study crowdsourced forecasts on the Estimize platform and similarly document incremental accuracy over sell-side consensus. Second, does the intensity of crowd order flow predict earnings outcomes beyond what the price level alone conveys? Third, do crowd predictions contain information for post-earnings stock returns? The post-earnings announcement drift literature \citep{ball1968empirical, bernard1989post} establishes that stock prices adjust slowly to earnings surprises; if the crowd identifies surprises before they are reflected in prices, crowd-based strategies may earn excess returns.
+
+The prediction market crowd achieves a Brier score of 0.124, compared to 0.155 for a naive baseline that always predicts the sample beat rate (80.8\%).\footnote{The Brier score \citep{brier1950verification} is the mean squared error between the predicted probability and the binary outcome: $\text{BS} = (1/N) \sum (p_i - o_i)^2$, where $p_i$ is the forecast probability and $o_i \in \{0, 1\}$ is the actual outcome. Lower scores indicate better calibration. A perfect forecaster scores 0; the naive baseline scores 0.155 because it assigns 0.81 to every event, incurring small errors on beats $(0.81 - 1)^2 = 0.036$ but large errors on misses $(0.81 - 0)^2 = 0.656$.} The crowd's Brier skill score of $+$0.20 indicates that its probability assessments are 20\% more accurate than simply predicting the base rate for every event.
+
+Much of this accuracy advantage reflects information recency rather than superior collective judgment. The IBES Summary consensus has a median staleness of 20 calendar days relative to the earnings announcement, a gap driven by the monthly refresh cycle of the Summary file and the practical quiet period that Regulation FD imposes on management communication \citep{heflin2003regulation}. The prediction market, by contrast, trades continuously until the announcement, which means participants can price in late-breaking macroeconomic releases, peer earnings results, and guidance revisions that arrive well after the consensus freezes. The crowd's Brier score advantage is thus best understood as the joint product of two forces: the structural downward bias in analyst forecasts documented by \citet{richardson2004walk} and \citet{matsumoto2002management}, which depresses the consensus below actual earnings as a beatable floor, and a timing asymmetry that allows prediction market participants to update on information the published consensus simply cannot reflect.
+
+Beyond the price level, the intensity of crowd order flow carries additional information. When flow imbalance is in the top quintile, the actual beat rate reaches 98.5\% (67/68 events). Flow imbalance also predicts the probability of beating consensus in a logistic regression ($z = 8.57$, $p < 10^{-17}$) and the magnitude of the earnings surprise in a linear regression ($t = -2.54$, $p = 0.011$).
+
+On returns, correctly predicted misses drift to $-$4.88\% by day~5. A short-only strategy based on low beat probability ($P < 0.30$) earns $+$5.90\% in strategy returns by day~10 ($t = 2.88$), with alpha concentrated entirely on the short side.
+
+\subsection*{Contributions}
+
+This paper contributes to the emerging literature on financial prediction markets in four ways that complement the concurrent work of \citet{gomezcram2025financial}. First, I decompose the crowd signal into a four-cell order flow framework (buy/sell $\times$ yes/no) rather than relying on prices alone, and show that flow imbalance contains information beyond the probability level. The distinction between price and flow connects to the toxic flow literature in equity microstructure \citep{easley1987price, kyle1985continuous}: in prediction markets, as in equity markets, the informational content of a trade depends not only on where it executes but on which side initiates it. Second, I develop two methods for inverting the binary beat probability into a dollar-denominated implied EPS estimate, finding that the crowd improves on consensus accuracy for non-GAAP earnings but not GAAP. Third, I extend the return analysis to a 10-day horizon with split-adjusted returns and document significant short-side strategy returns ($+$5.90\%, $t = 2.88$ at day~10), with positive Fama--French three-factor alpha and statistically insignificant factor loadings, which \citet{gomezcram2025financial} do not examine. Fourth, I exploit the on-chain transparency of blockchain settlement to identify 22 ``smart money'' wallets and profile their trading behavior across all Polymarket markets, finding that prediction market accuracy is driven by a heterogeneous mix of domain-specific fundamental specialists and algorithmic liquidity providers rather than omniscient insiders. This profiling analysis provides the first direct test of the \textit{marginal trader hypothesis} \citep{forsythe1992anatomy} using wallet-level behavioral data from a blockchain-settled financial market.
+
+The remainder of the paper proceeds as follows: Section~\ref{sec:lit} reviews the literature, Section~\ref{sec:data} describes data and methodology, Section~\ref{sec:accuracy} evaluates calibration and flow-based prediction, Section~\ref{sec:returns} examines post-earnings returns, Section~\ref{sec:micro} profiles on-chain trader archetypes, and Section~\ref{sec:conclusion} concludes.
+
+%======================================================================
+\section{Literature Review} \label{sec:lit}
+%======================================================================
+
+This paper sits at the intersection of three literatures: the accuracy and efficiency of prediction markets, the informational role of sell-side analysts, and the microstructure of informed trading. This section positions the contribution within each strand.
+
+\subsection{Prediction Market Accuracy and the Marginal Trader Hypothesis}
+
+The theoretical case for prediction market accuracy rests on the incentive compatibility of prices: traders who hold incorrect beliefs lose money, creating a self-correcting mechanism that pushes prices toward the true probability of an event \citep{hayek1945use, arrow2008promise}. Empirical validation began with the Iowa Electronic Markets, where \citet{forsythe1992anatomy} documented that political prediction markets outperformed polls despite thin trading and unsophisticated participants. Forsythe et al.\ advanced the \textit{marginal trader hypothesis}: market accuracy is not driven by the wisdom of the median participant but by a small cohort of informed marginal traders who correct mispricings introduced by noise traders. \citet{wolfers2004prediction} extended this framework, arguing that prediction markets aggregate information more efficiently than polls, surveys, or expert panels because prices reflect the beliefs of those most willing to stake capital on their views.
+
+\citet{rothschild2016trading} extend this framework using data from the Intrade political prediction market. They identify distinct trader archetypes---informed speculators, noise traders, and market makers---and show that the informed minority's order flow is disproportionately responsible for driving prices toward correct levels. The marginal trader hypothesis has not, however, been tested in financial prediction markets with wallet-level data, because prior platforms (Iowa Electronic Markets, Betfair, Estimize) do not settle on a public blockchain and therefore do not permit granular trader identification. This paper fills that gap: blockchain settlement on Polygon allows me to construct complete trading histories for every participant and directly test whether the smart money drives accuracy.
+
+\subsection{Analyst Forecasting and Institutional Bias}
+
+The sell-side analyst consensus is the dominant benchmark for corporate earnings expectations. A large literature documents that analysts are, on average, optimistically biased and that this bias is strategically motivated. \citet{richardson2004walk} show that analysts revise forecasts downward over the quarter, ``walking down'' estimates so that companies can announce a beat, a pattern that benefits both managers (who signal competence) and analysts (who maintain access to management). \citet{matsumoto2002management} demonstrates that managers actively guide expectations downward, and \citet{ke2006effect} establishes that analysts who issue overly optimistic forecasts risk losing management access altogether (\citet{hong2000security} provide a complementary career-concerns model showing that analysts herd toward the consensus because bold deviations are penalized). The result is a consensus that functions less as a best estimate and more as a strategically depressed floor.
+
+\subsection{Post-Earnings Announcement Drift and Limits to Arbitrage}
+
+\citet{ball1968empirical} first documented that stock prices continue to drift in the direction of an earnings surprise for weeks after the announcement. \citet{bernard1989post} confirmed this post-earnings announcement drift (PEAD) as one of the most robust anomalies in empirical finance, and \citet{livnat2006comparing} extended the finding to revenue surprises. More recently, \citet{martineau2022pead} argues that unconditional PEAD has largely attenuated in non-microcap stocks, suggesting that the anomaly has been partially arbitraged away.
+
+The \textit{limits of arbitrage} framework \citep{shleifer1997limits} explains why PEAD may persist in specific subsets of events. Short-sale constraints---borrowing costs, uptick rules, and fiduciary restrictions---make it expensive for arbitrageurs to correct overvalued expectations on the downside. This asymmetry predicts that any residual PEAD should be concentrated on the miss side, where institutional frictions impede the marginal short-seller. The finding in this paper that short-side alpha is statistically significant while long-side alpha is indistinguishable from zero is precisely what the limits-to-arbitrage framework would predict for a market in which unconditional PEAD has partially attenuated but short-sale constraints remain binding.
+
+\subsection{Concurrent Work}
+
+\citet{gomezcram2025financial} study Polymarket earnings markets using API price snapshots and document crowd accuracy relative to analysts. The present paper extends their analysis in two dimensions. First, the Dome API provides trade-level data with directional classification (buy/sell $\times$ yes/no), which the Polymarket REST API's price snapshots do not, allowing the construction of flow imbalance and the separation of price information from flow information. Second, because every settled trade is recorded on the Polygon blockchain with a persistent wallet address, I can construct wallet-level trading histories and directly test the marginal trader hypothesis, a test that is not possible with aggregated price data.
+
+%======================================================================
+\section{Data and Methodology} \label{sec:data}
+%======================================================================
+
+\subsection{Polymarket Earnings Markets}
+
+I obtain trade-level data from the Dome platform, a trading interface built on the Polymarket protocol. The raw dataset contains 11.1 million on-chain trade records across 338 resolved earnings beat/miss markets spanning 255 unique tickers, with events from late 2025 through early 2026. Each market specifies a binary outcome: whether the company's reported EPS exceeds a market-maker-set threshold (the ``line''). I classify markets by EPS type (GAAP or non-GAAP) via automated slug parsing and assign each event a strict \texttt{accounting\_basis} label to prevent cross-contamination in downstream analyses.
+
+Because Polymarket settles on the Polygon blockchain, every trade is permanently recorded on-chain: timestamped, priced, sized, directionally classified, and attributable to a persistent wallet address. This on-chain transparency distinguishes the data from traditional CLOB-based exchanges, where order flow is anonymous, and from the Polymarket REST API, which provides price snapshots but not trade-level directional classification. The Dome API aggregates these on-chain records into a queryable format.
+
+For each market, I aggregate trades to construct implied beat probabilities and total prediction market dollar volume. Rather than using the last-traded price, which is susceptible to bid-ask bounce from small fills, I use the dollar-volume-weighted average implied probability (\texttt{prob\_vwap}) as the primary measure. True bid-ask midpoint data are unavailable because Polymarket's resting orders live off-chain on the matching engine; only settled trades appear on the Polygon blockchain. The VWAP weights each trade's implied probability by its dollar volume, dampening the noise introduced by low-dollar fills near the market close.
+
+\subsubsection{Microstructure Filters}
+
+I apply two liquidity filters to exclude markets where prices may be stale or manipulable: markets with total dollar volume below \$500 or fewer than 20 trades are dropped. In the current sample, no events fall below either threshold, which confirms that Polymarket earnings markets are uniformly liquid relative to these cutoffs.
+
+\subsection{Four-Cell Flow Decomposition}
+
+Each trade is mapped to one of four cells based on direction and token:
+\begin{align}
+\text{buy\_yes} &= \text{Buy order on Yes token (bullish: expects beat)} \notag \\
+\text{sell\_yes} &= \text{Sell order on Yes token (bearish: expects miss)} \notag \\
+\text{buy\_no} &= \text{Buy order on No token (bearish: expects miss)} \notag \\
+\text{sell\_no} &= \text{Sell order on No token (bullish: expects beat)} \notag
+\end{align}
+This four-cell structure is the prediction market analog of the \citet{lee1991inferring} trade classification algorithm used in equity microstructure. In equity markets, Lee--Ready classifies each trade as buyer- or seller-initiated based on its position relative to the prevailing quote midpoint. In prediction markets, the classification is richer because directional conviction can be expressed through either token: a trader who expects a miss can either sell yes tokens or buy no tokens, and the two actions carry identical economic content but may differ in execution cost and informational impact.
+
+I define net beat flow and flow imbalance as:
+\begin{equation}
+\text{net\_beat\_flow} = (\text{buy\_yes} + \text{sell\_no}) - (\text{sell\_yes} + \text{buy\_no})
+\end{equation}
+\begin{equation}
+\text{flow\_imbalance} = \frac{\text{net\_beat\_flow}}{\text{buy\_yes} + \text{sell\_no} + \text{sell\_yes} + \text{buy\_no}}
+\end{equation}
+Flow imbalance ranges from $-$1 (all flow bearish) to $+$1 (all flow bullish) and is correlated with but distinct from the implied probability level ($r = 0.67$). Flow imbalance captures the intensity of directional conviction---the degree to which informed participants are actively positioning on one side---while the probability level reflects the equilibrium price, which may be sustained by passive liquidity provision rather than directional views. The distinction between price and flow is central to the toxic flow interpretation developed in Section~\ref{sec:micro}: a market can show a beat probability of 0.25 either because informed traders are aggressively selling (high toxic flow, strongly predictive) or because liquidity is thin and the last fill happened to print low (low toxic flow, weakly predictive).
+
+\subsection{IBES Analyst Consensus and the Match-Merge Process}
+
+I match Polymarket tickers to IBES using the \texttt{oftic} field (exchange ticker) from the IBES identification file. This circumvents the CUSIP fragmentation problem: IBES internal tickers differ from exchange symbols for many names (e.g., JPM$\to$CHL, META$\to$FBK, MU$\to$DRAM), but the \texttt{oftic} field preserves the exchange-traded symbol. The mapping yields 254 of 255 unique tickers (99.6\%), with only UHAL.B unmatched due to share-class disambiguation.
+
+I use the IBES Summary file (\texttt{statsumu\_epsus} for non-GAAP; \texttt{statsumu\_xepsus} for GAAP) rather than the Detail file. The Summary file reports the consensus mean, median, standard deviation, and analyst count as of each monthly snapshot date (\texttt{statpers}), which falls on the Thursday before the third Friday of each month. This is the standard source for consensus estimates in the empirical literature \citep{richardson2004walk, matsumoto2002management}. While the Detail file records individual analyst estimates with specific submission dates, it is unnecessary here because the research question concerns \textit{consensus} versus crowd, not individual analyst behavior.\footnote{A consequence of relying on the Summary file is that the consensus may be ``stale'' by the time earnings are announced. I quantify this staleness using the \texttt{days\_consensus\_to\_earnings} variable and find a median gap of 20 days, reflecting the monthly refresh cycle. The prediction market, by contrast, trades continuously up to the announcement.}
+
+\subsubsection{Accounting Basis Strictness}
+
+IBES reports non-GAAP (``street'') earnings in the \texttt{epsus} tables and GAAP earnings in the \texttt{xepsus} tables. I maintain strictly parallel data streams throughout the pipeline: non-GAAP consensus and actuals are drawn exclusively from \texttt{statsumu\_epsus} and \texttt{actu\_epsus}, while GAAP data come exclusively from \texttt{statsumu\_xepsus} and \texttt{actu\_xepsus}. The two streams are never merged until after all ticker-level computations (including the rolling surprise volatility in Section~\ref{sec:implied}) are complete. Hard assertions verify that no GAAP event is matched to a non-GAAP source table, and vice versa; any cross-contamination halts the pipeline with a fatal error. Without this discipline, one could inadvertently compute a surprise as (GAAP actual $-$ non-GAAP consensus), which would introduce systematic bias into the volatility estimates.
+
+\subsubsection{Look-Ahead Bias Correction for BMO Announcements}
+
+The last valid prediction market probability must strictly precede the earnings release. For after-market-close (AMC) announcements, the closing probability on the announcement date is appropriate because trading ceases before the after-hours release. However, for before-market-open (BMO) announcements, earnings are known before the market opens, and any trading on that date would already incorporate the release. I identify 9 BMO events using the IBES announcement date (\texttt{anndats}) and adjust the probability observation date to $T-1$. An aggregate audit confirms that no BMO event in the final sample uses a probability observation from the announcement date or later.
+
+\subsection{Stock Returns}
+
+Daily stock returns are derived from WRDS TAQ millisecond data, aggregated first to 5-minute OHLCV bars and then to close-to-close daily returns within market hours (9:30--16:00 ET). Excess returns are computed relative to the SPY ETF (S\&P~500 proxy). I compute 1-day, 5-day, and 10-day cumulative excess returns for each event, with the event date defined as the first trading day on or after the earnings announcement. Returns are winsorized at the 2nd and 98th percentiles. Pre-earnings stock volatility is the standard deviation of daily returns over the 5--15 calendar days before the event.
+
+\subsection{Historical IBES Data for Implied EPS} \label{sec:ibes_history}
+
+The implied EPS analysis (Section~\ref{sec:implied}) requires a rolling estimate of each firm's earnings surprise volatility. I expand the IBES query to cover three years of history prior to the earliest event (back to September 2022), yielding 6,569 (ticker, basis, fiscal-period) observations across 254 tickers after deduplication.\footnote{IBES actuals return both annual and quarterly rows for the same fiscal period end date. I deduplicate by retaining, for each (ticker, basis, \texttt{fpedats}) group, the row whose absolute surprise $|$actual $-$ consensus$|$ is smallest, which corresponds to the quarterly match rather than the annual aggregate.}
+
+\subsubsection{Stock Split Adjustment}
+
+Without adjustment for stock splits, the rolling surprise window would contain pre-split EPS figures alongside post-split figures, producing artificially inflated volatility. I pull the cumulative adjustment factor from \texttt{ibes.adj}, which records the factor by which pre-split EPS must be divided to express it in current (post-split) terms. Fifteen tickers in the sample required adjustment, including NVDA (10-for-1, June 2024) and AVGO (10-for-1, July 2024). For these tickers, I divide both pre-split actual EPS and consensus by the cumulative adjustment factor at the fiscal period end date before computing the surprise. Post-split quarters receive no adjustment (factor = 1.0).
+
+\subsection{Consensus Staleness and the Timing Advantage}
+
+The IBES Summary file updates monthly, and analysts face a practical quiet period of one to three weeks before earnings as Regulation FD \citep{heflin2003regulation} restricts management communication, cutting off a primary information source. The prediction market, by contrast, trades continuously until the announcement. To quantify this structural gap, I construct three timing variables:
+
+\begin{itemize}
+\item \texttt{days\_consensus\_to\_earnings}: days from the last IBES snapshot (\texttt{statpers}) to the earnings date. Median: 20 days.
+\item \texttt{days\_pm\_open\_to\_earnings}: days from the first prediction market trade to the earnings date. Median: 9 days.
+\item \texttt{days\_consensus\_to\_pm\_close}: days from the last IBES snapshot to the last prediction market trade. Median: 20 days.
+\end{itemize}
+
+Two caveats apply to this timing gap. First, the 20-day figure reflects the staleness of the IBES academic extract (Summary file), which refreshes monthly; professional terminals such as Bloomberg and Refinitiv show analyst revisions in near-real-time, so the effective consensus staleness for institutional investors is shorter. Second, however, the gap is not purely a data artifact: this window frequently overlaps with the corporate quiet period imposed by Regulation FD, during which management ceases providing guidance and the rate of analyst revisions slows because a primary information source goes dark. The prediction market trades continuously through the quiet period, allowing participants to incorporate channel checks, peer earnings results, and alternative data that analysts are slower to act on. The crowd's informational advantage is thus best understood as a combination of structural data staleness and a genuine reduction in the flow of analyst-usable information during the pre-earnings window.
+
+\subsection{Sample Selection and Attrition} \label{sec:attrition}
+
+Table~\ref{tab:attrition} summarizes the sample attrition. The starting universe of 340 Polymarket earnings markets (including two events that predate IBES coverage) reduces to 338 after matching to IBES consensus forecasts. All 338 matched events have non-missing actual EPS, consensus mean, beat probability, and flow imbalance, and all but one have positive volume in all four flow cells. This 338-event matched sample is used for calibration, disagreement, bias regression, and implied EPS analyses. The binding constraint is TAQ return coverage: 337 events have day-1 excess returns, 334 have day-5, and 297 have day-10, with the reduction driven by events near the end of the sample period (February 2026) for which the full post-earnings trading window is not yet available in the TAQ data.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Sample Attrition}
+\label{tab:attrition}
+\begin{tabular}{llr}
+\toprule
+Stage & Restriction & $N$ \\
+\midrule
+Starting universe & Resolved Polymarket earnings markets & 340 \\
+IBES-matched sample & Non-missing actual EPS, consensus, and beat probability & 338 \\
+With day-1 returns & Non-missing TAQ excess returns at day 1 & 337 \\
+With day-5 returns & Non-missing TAQ excess returns at day 5 & 334 \\
+With day-10 returns & Non-missing TAQ excess returns at day 10 & 297 \\
+Implied EPS sample & $\geq$ 4 quarters historical surprise data & 330 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} The IBES-matched sample of 338 events is used for calibration, bias regressions, and implied EPS analyses. The reduction from 340 to 338 reflects two events where the ticker lacks IBES coverage. Return analyses use progressively smaller samples as the required post-earnings horizon extends: 337 (day 1), 334 (day 5), 297 (day 10). The day-10 reduction reflects events near the end of the sample period (February 2026) for which the full 10-trading-day window is not yet available in the TAQ data. All tables report the relevant $N$ explicitly.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+The 338-event IBES-matched sample is used for all analyses that do not require post-earnings stock returns (calibration, flow regressions, bias regressions, implied EPS). Return analyses use 297 events (the subset with complete day-10 returns). All tables report the relevant $N$ explicitly.
+
+\subsection{Line Verification}
+
+By construction, Polymarket market makers set the EPS threshold at or near the sell-side consensus. I verify this empirically: regressing the MM line on the IBES consensus mean yields a slope of 1.002, an intercept of $-$0.01, and $R^2 = 0.9989$ ($r = 0.999$, $n = 338$). The median gap is exactly zero, and as point forecasts of actual EPS the two are statistically indistinguishable (MAE of \$2.07 for the MM line versus \$2.08 for analysts; paired $t = -1.36$, $p = 0.17$). This confirms that the prediction market is a referendum on whether the company will beat the Street's expectation, not a competing point estimate. A beat probability above 0.50 is therefore equivalent to a crowd prediction that the company will exceed the analyst consensus. The crowd's informational contribution lies entirely in its continuous probability assessment of the beat/miss outcome.
+
+Table~\ref{tab:summary} presents summary statistics. Table~\ref{tab:variables} defines the key variables.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Summary Statistics}
+\label{tab:summary}
+\begin{tabular}{lrr}
+\toprule
+& GAAP & Non-GAAP \\
+\midrule
+Events & 131 & 207 \\
+Unique tickers & 100 & 158 \\
+Median analyst coverage & 11 & 16 \\
+Median PM volume (\$) & 16{,}919 & 13{,}491 \\
+Median trades & 555 & 530 \\
+Median beat probability (VWAP) & 0.77 & 0.85 \\
+Actual beat rate (\%) & 70.2 & 87.4 \\
+\midrule
+\multicolumn{3}{l}{\textit{Full Sample}} \\
+Total resolved markets & \multicolumn{2}{c}{338} \\
+Unique tickers & \multicolumn{2}{c}{254} \\
+Median consensus staleness (days) & \multicolumn{2}{c}{20} \\
+Median PM open-to-earnings (days) & \multicolumn{2}{c}{9} \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} The IBES-matched sample consists of 338 Polymarket earnings markets with non-missing actual EPS, consensus mean, and beat probability. Beat probability is the VWAP-based implied probability from the last active trading session before the earnings announcement. Actual beat rate is the fraction of events where reported EPS exceeded the market-maker line. PM volume is total prediction market dollar volume per event. Consensus staleness is the number of days between the last IBES Summary snapshot and the earnings date.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Variable Definitions}
+\label{tab:variables}
+\begin{tabular}{lp{4.2in}}
+\toprule
+Variable & Definition \\
+\midrule
+\texttt{beat\_prob\_last} & VWAP-weighted implied probability of beating the MM line from the last active trading session \\
+\texttt{flow\_imbalance} & Net beat flow divided by total flow; ranges $[-1, +1]$ \\
+\texttt{eps\_target} & Market-maker-set EPS threshold (the ``line'') \\
+\texttt{consensus\_mean} & IBES mean analyst EPS forecast \\
+\texttt{actual\_eps} & Reported EPS (GAAP or non-GAAP per market type) \\
+\texttt{delta\_an} & Analyst forecast error: consensus mean $-$ actual EPS \\
+\texttt{delta\_pm} & PM forecast error: MM line $-$ actual EPS \\
+\texttt{excess\_return\_1d} & Day-1 stock return minus SPY return \\
+\texttt{excess\_return\_5d} & Cumulative 5-day excess return \\
+\texttt{excess\_return\_10d} & Cumulative 10-day excess return \\
+\texttt{days\_consensus\_to\_earn} & Days from last IBES snapshot to earnings date \\
+\texttt{implied\_eps\_t} & PM-implied EPS via Student's $t$ inversion (Method A) \\
+\texttt{implied\_eps\_ecdf} & PM-implied EPS via empirical CDF (Method B) \\
+\texttt{analyst\_dispersion} & Std.\ dev.\ of individual analyst EPS forecasts \\
+\texttt{pre\_stock\_vol} & Std.\ dev.\ of daily stock returns, 5--15 days pre-event \\
+\bottomrule
+\end{tabular}
+\end{threeparttable}
+\end{table}
+
+%======================================================================
+\section{Market Accuracy: Calibration, Scoring, and Disagreement} \label{sec:accuracy}
+%======================================================================
+
+\subsection{Crowd Calibration}
+
+I evaluate crowd calibration by sorting events into five bins by the last traded beat probability and comparing the mean probability in each bin to the actual beat frequency. A perfectly calibrated forecaster would produce points along the 45-degree line.
+
+Table~\ref{tab:calibration} reports the calibration bins.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{PM Crowd Calibration}
+\label{tab:calibration}
+\begin{tabular}{lccc}
+\toprule
+Probability Bin & $n$ & Mean Probability & Actual Beat Rate \\
+\midrule
+0--20\% & 16 & 0.059 & 0.250 \\
+20--40\% & 29 & 0.311 & 0.483 \\
+40--60\% & 34 & 0.497 & 0.559 \\
+60--80\% & 72 & 0.722 & 0.833 \\
+80--100\% & 187 & 0.909 & 0.941 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Events sorted into five bins by last traded beat probability ($N = 338$). Mean Probability is the average implied probability within each bin. Actual Beat Rate is the fraction of events where reported EPS exceeded the MM line.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+The crowd is well calibrated. Events assigned low probabilities (0--20\%) beat at 25.0\%, reasonably close to the predicted 5.9\% given the small bin size ($n = 16$). Events assigned high probabilities (80--100\%) beat at 94.1\%, close to the predicted 90.9\%. Calibration improves monotonically across bins, with the largest deviation in the 40--60\% range (55.9\% actual vs.\ 49.7\% predicted).
+
+\subsection{Flow-Based Calibration}
+
+Flow imbalance provides an alternative measure of crowd conviction. Table~\ref{tab:flow_calibration} sorts events into quintiles by flow imbalance and reports actual beat rates.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Flow-Based Calibration by Quintile}
+\label{tab:flow_calibration}
+\begin{tabular}{lccc}
+\toprule
+Quintile & $n$ & Mean Flow & Actual Beat Rate \\
+\midrule
+Q1 (most bearish) & 68 & $-$0.300 & 32.4\% \\
+Q2 & 67 & 0.193 & 77.6\% \\
+Q3 & 68 & 0.390 & 98.5\% \\
+Q4 & 67 & 0.519 & 97.0\% \\
+Q5 (most bullish) & 68 & 0.681 & 98.5\% \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Events sorted into quintiles by flow imbalance ($N = 338$). Q1 is the most bearish flow (highest sell-side share); Q5 is the most bullish. The nearly monotonic increase from Q1 (32.4\%) to Q3--Q5 ($\approx$98\%) demonstrates that order flow direction strongly predicts the beat/miss outcome.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+Beat rates increase nearly monotonically from 32.4\% in Q1 to 98.5\% in Q3 and Q5. The Q1-to-Q5 spread of 66 percentage points in actual beat rates demonstrates that flow imbalance is a powerful predictor of the earnings outcome. The concentration of misses in Q1 is particularly relevant for the short-side strategy developed in Section~\ref{sec:returns}: two-thirds of events in the most bearish flow quintile result in actual misses, compared to fewer than 3\% in all other quintiles.
+
+\subsection{Brier Scores}
+
+I compute Brier scores for the crowd forecast (\texttt{beat\_prob\_last}) against a naive baseline that assigns the sample beat rate (80.8\%) to every event. The crowd achieves a Brier score of \textbf{0.124}, compared to \textbf{0.155} for the naive baseline, yielding a Brier skill score (BSS) of $+$\textbf{0.20}. The crowd is 20\% more accurate than a forecaster with no information beyond the base rate, confirming that the prediction market's probability assessments contain genuine information about which specific events will beat and which will miss.
+
+\subsection{Flow Imbalance as a Predictor of Earnings Outcomes}
+
+The calibration and Brier score results establish that the crowd's \textit{price} is informative. This subsection tests whether the crowd's \textit{order flow} adds information beyond the price level, by examining whether flow imbalance predicts the direction and magnitude of the earnings surprise relative to the analyst consensus.
+
+I estimate a logistic regression of the beat-consensus indicator on flow imbalance:
+\begin{equation}
+\Pr(\text{actual} > \text{consensus}) = \Lambda(\alpha + \beta \cdot \text{flow\_imbalance})
+\end{equation}
+The coefficient on flow imbalance is 4.736 ($z = 8.57$, $p < 10^{-17}$), indicating a powerful relationship between crowd order flow and the probability of beating the analyst consensus.
+
+I also estimate a linear regression of the analyst surprise ($\delta_{\text{an}}$ = consensus mean $-$ actual EPS, so that positive values indicate analyst overshoot) on flow imbalance:
+\begin{equation}
+\delta_{\text{an}} = \alpha + \beta \cdot \text{flow\_imbalance} + \varepsilon
+\end{equation}
+The coefficient is $-$1.81 ($t = -2.54$, $p = 0.011$). Since $\delta_{\text{an}} = \text{consensus} - \text{actual}$, the negative coefficient means that bullish crowd flow is associated with actual EPS being \textit{higher} relative to the consensus---i.e., a larger positive surprise (or smaller miss). This is consistent with the logistic result: bullish flow predicts that the company will exceed analyst expectations.
+
+Table~\ref{tab:refinement} reports a flow tercile sort that illustrates the refinement.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Flow Tercile Refinement of Analyst Consensus}
+\label{tab:refinement}
+\begin{tabular}{lccccc}
+\toprule
+Flow Tercile & $n$ & Mean Flow & Beat Consensus & Mean Surprise & Mean XS 1d \\
+\midrule
+1 (bearish) & 113 & $-$0.118 & 52.2\% & $-$1.376 & $-$0.63\% \\
+2 (neutral) & 112 & 0.384 & 94.6\% & $-$1.661 & $+$0.73\% \\
+3 (bullish) & 113 & 0.624 & 97.3\% & $-$2.457 & $+$0.13\% \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Events sorted into terciles by flow imbalance ($N = 338$). ``Beat Consensus'' is the fraction where actual EPS exceeded the IBES consensus mean. ``Mean Surprise'' is the average signed forecast error (actual $-$ consensus, in dollars); negative values indicate that a small number of large misses pull the mean below zero even when the vast majority of events beat consensus, reflecting the heavy left tail of earnings surprise distributions. ``Mean XS 1d'' is the average day-1 SPY-excess return. The spread in beat rates from 52.2\% (bearish tercile) to 97.3\% (bullish tercile) demonstrates that crowd flow strongly predicts the direction of the analyst forecast error.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+The tercile sort reveals a stark gradient. In the most bearish flow tercile, only 52.2\% of events beat the analyst consensus, and the mean excess return is $-$0.63\%. In the most bullish tercile, 97.3\% beat consensus, and the mean excess return is $+$0.13\%. The negative mean surprise in the bullish tercile ($-$2.457) despite a 97.3\% beat rate reflects the influence of a small number of extreme misses: events where actual EPS fell well below consensus produce large negative values that dominate the mean, while the vast majority of beats produce individually smaller positive surprises. The median surprise (not reported) is positive in all terciles where the beat rate exceeds 50\%. The 45.1 percentage-point spread in beat rates across flow terciles demonstrates that crowd order flow contains substantial information about the direction of earnings surprises relative to analyst expectations.
+
+\subsection{The Analyst Walk-Down: Quantifying Institutional Bias}
+
+The prediction market crowd is well calibrated and flow imbalance strongly predicts earnings outcomes. The natural question is \textit{why} the consensus is beatable in the first place, and the answer appears to lie in the systematic downward revision of earnings forecasts documented in the analyst herding literature \citep{richardson2004walk, hong2000security}.
+
+I estimate the following specification across the 338 IBES-matched events:
+\begin{equation}
+\text{Actual\_EPS}_i = \alpha + \beta \cdot \text{Consensus\_Mean}_i + \varepsilon_i
+\end{equation}
+
+Table~\ref{tab:bias_reg} reports the results. The intercept $\hat{\alpha} = +1.55$ is positive and highly significant ($t = 5.88$, $p < 10^{-8}$), which indicates that analyst consensus systematically undershoots actual EPS by an average of \$1.55 per share. The slope $\hat{\beta} = 1.15$ exceeds unity, implying that the undershoot widens for higher-EPS firms. The model explains 67.5\% of the cross-sectional variation in actual EPS ($R^2 = 0.675$).
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Analyst Forecast Bias Regression}
+\label{tab:bias_reg}
+\begin{tabular}{lcccc}
+\toprule
+& Estimate & Std.\ Error & $t$-stat & $p$-value \\
+\midrule
+$\alpha$ (Intercept) & 1.5474 & 0.2632 & 5.88 & $<10^{-8}$ \\
+$\beta$ (Consensus Mean) & 1.1526 & 0.0436 & 26.43 & $<10^{-16}$ \\
+\midrule
+$R^2$ & \multicolumn{4}{c}{0.675} \\
+$N$ & \multicolumn{4}{c}{338} \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Pooled OLS of actual reported EPS on IBES consensus mean EPS ($N = 338$). The positive intercept confirms the ``walk-down to beatable forecasts'' documented by \citet{richardson2004walk}. Results are robust to stock-split adjustments and accounting basis controls.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+This pattern is consistent with the \textit{analyst walk-down} documented in the literature: analysts revise forecasts downward over the quarter so that companies can announce a ``beat,'' benefiting both managers (who signal competence) and analysts (who maintain access to management) \citep{richardson2004walk, matsumoto2002management, ke2006effect}. The regression identifies systematic underprediction but does not isolate the causal mechanism; the walk-down interpretation is supported by the cited literature rather than by this cross-sectional test alone. The prediction market has no such incentive structure. Traders profit from accuracy, not from maintaining relationships with investor relations departments. The positive $\hat{\alpha}$ quantifies the structural information gap that prediction markets are positioned to fill: the crowd provides an unbiased assessment in an ecosystem where the published consensus is, by design, beatable.
+
+However, the crowd's accuracy is not simply a mechanical exploitation of the walk-down. If it were, a naive strategy of always predicting ``beat'' would suffice, and the Brier score would not improve on the naive baseline (which already encodes the 81\% beat rate). The crowd's edge (BSS = $+$0.20) comes from identifying \textit{which specific events} will beat, not just that most will. Figure~\ref{fig:waterfall} decomposes the \$0.53 median gap between analyst consensus and actual EPS for non-GAAP events. The analyst consensus is \$1.07. Each firm's trailing eight-quarter median surprise adds \$0.05 (9\% of the gap): companies tend to beat consensus by roughly this amount every quarter because analysts set a beatable floor, and that pattern alone is predictable from history. The PM-implied adjustment above that bias-corrected baseline adds \$0.10 (19\%), bringing the crowd's implied EPS to \$1.22. The remaining \$0.38 (72\%) is residual that neither the historical pattern nor the crowd's probability assessment captured. Yet the PM adjustment moves in the correct direction in 82.4\% of events; the crowd's contribution is directional, not scalar.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{/Users/chloe_1.0/Documents/data/corrr/390_paper/analysis/fig_eps_waterfall.pdf}
+\caption[EPS Attribution]{Waterfall decomposition of the \$0.53 median gap between analyst consensus and actual EPS for non-GAAP events ($n = 205$). The historical bias component (\$0.05, 9\%) is each firm's trailing eight-quarter median surprise, the predictable portion of the analyst walk-down. The PM-implied adjustment (\$0.10, 19\%) is the crowd's implied EPS above that bias-corrected baseline, derived by inverting the beat probability through a Student's $t$ distribution. The residual (\$0.38, 72\%) is what neither history nor the crowd captured.}
+\label{fig:waterfall}
+\end{figure}
+
+\subsection{Implied EPS: From Probability to Point Estimate} \label{sec:implied}
+
+The prediction market yields $P(\text{EPS} > \text{line})$, a probability rather than a dollar figure. In order to invert this probability into a point estimate of expected EPS, one requires a distributional assumption about the width of earnings uncertainty around the line.
+
+\subsubsection{Rolling Surprise Volatility}
+
+I estimate each firm's earnings surprise volatility using a rolling 12-quarter window of historical surprises (actual EPS minus consensus mean), computed separately by ticker and accounting basis. The surprise series is constructed from split-adjusted EPS using the IBES cumulative adjustment factor (Section~\ref{sec:ibes_history}). The window is lagged by one quarter ($T-12$ through $T-1$) so that the current quarter's realization cannot enter its own volatility estimate.
+
+\subsubsection{Method A: Parametric Inversion (Student's $t$, $df=4$)}
+
+Earnings surprises exhibit excess kurtosis. I model the distribution of EPS around the consensus as a Student's $t$-distribution with four degrees of freedom to accommodate the fat tails characteristic of earnings announcements:
+\begin{equation}
+\text{EPS} \sim t\!\left(\mu,\; \sigma,\; \nu = 4\right)
+\end{equation}
+Given the prediction market probability $p = P(\text{EPS} > \text{line})$ and the rolling surprise volatility $\hat{\sigma}$, the implied expected EPS is:
+\begin{equation}
+\widehat{\text{EPS}}_A = \text{line} + \hat{\sigma} \cdot t^{-1}_{\nu=4}(p)
+\end{equation}
+where $t^{-1}_{\nu}(\cdot)$ is the quantile function of the Student's $t$-distribution. Beat probabilities are clamped to $[0.001, 0.999]$ before inversion to prevent infinite values. Implied EPS is rounded to two decimal places to match the penny granularity of reported earnings.
+
+The beat probability alone tells you the \textit{chance} of beating, not \textit{by how much}. The surprise volatility $\hat{\sigma}$ provides the necessary scaling: if two companies both have a 90\% beat probability but one is Coca-Cola ($\hat{\sigma} = \$0.02$, earnings that beat by pennies every quarter) and the other is Tesla ($\hat{\sigma} = \$0.09$, earnings that swing wildly), the implied EPS should be farther above the line for Tesla than for Coca-Cola. Without $\hat{\sigma}$, a probability cannot be converted into dollars.
+
+\subsubsection{Worked Example}
+
+Table~\ref{tab:implied_example} illustrates the inversion on four non-GAAP events spanning the range of beat probabilities.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Implied EPS: Worked Examples (Non-GAAP)}
+\label{tab:implied_example}
+\begin{tabular}{lccccccc}
+\toprule
+Ticker & Line & $P(\text{beat})$ & $\hat{\sigma}$ & $t^{-1}_4(P)$ & Implied EPS & Consensus & Actual \\
+\midrule
+HD & \$3.85 & 0.27 & \$0.074 & $-$0.72 & \$3.80 & \$3.86 & \$3.74 \\
+TSLA & \$0.50 & 0.47 & \$0.094 & $-$0.10 & \$0.49 & \$0.53 & \$0.50 \\
+KO & \$0.78 & 0.73 & \$0.020 & $+$0.68 & \$0.79 & \$0.78 & \$0.82 \\
+CRM & \$2.86 & 0.94 & \$0.098 & $+$1.98 & \$3.05 & \$2.86 & \$3.25 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} For each event, implied EPS $= \text{Line} + \hat{\sigma} \times t^{-1}_4(P)$. For Salesforce (CRM), the crowd assigns a 94\% beat probability and the company's trailing 12-quarter surprise volatility is \$0.098; the $t$-distribution quantile at $P = 0.94$ with $df = 4$ is $+$1.98, so the implied EPS is $\$2.86 + \$0.098 \times 1.98 = \$3.05$, which is closer to the actual (\$3.25) than the analyst consensus (\$2.86). For Home Depot (HD), the crowd's low beat probability (27\%) pushes the implied EPS below the line, correctly anticipating the miss.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+\subsubsection{Accuracy by Accounting Basis}
+
+Across the full sample ($n = 224$), the PM-implied estimate has a higher mean absolute error (MAE) than the analyst consensus (\$2.415 vs.\ \$2.128). However, the results split sharply by accounting basis. For non-GAAP earnings (the ``street'' measure that strips out one-time items), the PM-implied estimate improves on the consensus by 2.3\% (MAE of \$2.013 vs.\ \$2.061, $n = 139$). For GAAP earnings, the PM-implied estimate degrades by 37.6\% (MAE of \$3.081 vs.\ \$2.239, $n = 85$).
+
+The implication is that prediction market participants are pricing \textit{operating fundamentals}. Non-GAAP earnings are the metric that management guides toward and that most closely tracks the cash-generating capacity of the business. GAAP earnings include restructuring charges, goodwill impairments, and other items that are difficult to forecast from public information, and these are precisely the items the crowd appears to ignore.
+
+%======================================================================
+\section{Return Predictability and Short-Side Alpha} \label{sec:returns}
+%======================================================================
+
+\subsection{Returns by Prediction Outcome}
+
+I classify each event into four cells based on the crowd's prediction direction (beat or miss) and whether the prediction was correct. Table~\ref{tab:four_cell} reports mean excess returns.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Returns by Prediction Outcome}
+\label{tab:four_cell}
+\begin{tabular}{lcccccc}
+\toprule
+& $n$ & \multicolumn{2}{c}{Day 1} & \multicolumn{2}{c}{Day 5} & Hit \\
+\cmidrule(lr){3-4} \cmidrule(lr){5-6}
+Outcome & & Mean & $t$ & Mean & $t$ & Rate \\
+\midrule
+Predicted beat, correct & 220 & $+$0.74\% & 1.79 & $+$0.10\% & 0.19 & 55.9\% \\
+Predicted beat, wrong & 27 & $+$0.12\% & 0.10 & $-$1.29\% & $-$1.14 & 51.9\% \\
+Predicted miss, wrong & 14 & $-$0.08\% & $-$0.04 & $-$2.26\% & $-$1.25 & 35.7\% \\
+Predicted miss, correct & 36 & $-$2.65\% & $-$2.20 & $-$4.88\% & $-$3.39 & 33.3\% \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Crowd predicts beat if \texttt{beat\_prob\_last} $> 0.50$, miss otherwise. ``Correct'' means the prediction matched the actual outcome. Mean is the average SPY-excess return. $t$-statistics test $H_0$: mean $= 0$. Hit Rate is the fraction of positive excess returns. Returns are in percent. $N = 297$ reflects events with complete IBES match, flow data, and non-missing TAQ excess returns at the day-1 horizon; the sample for day-5 and day-10 columns is smaller due to end-of-sample truncation (see Table~\ref{tab:attrition}).
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+Two patterns stand out. First, the return spread between correct beats ($+$0.74\%) and correct misses ($-$2.65\%) on day 1 is 3.39 percentage points, consistent with the crowd identifying the direction of the earnings surprise. Second, the asymmetry between beats and misses (misses produce larger absolute returns) is consistent with the documented tendency for negative earnings surprises to generate larger price reactions than positive surprises of comparable magnitude \citep{skinner1994earnings}.
+
+\subsection{Return Drift}
+
+Figure~\ref{fig:drift} plots the evolution of excess returns from day 1 to day 5 for each prediction outcome cell.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{/Users/chloe_1.0/Documents/data/corrr/390_paper/analysis/fig_return_drift.pdf}
+\caption[Return Drift]{Post-earnings return drift from day 1 to day 5 by prediction outcome. Correctly predicted misses drift from $-$2.65\% to $-$4.88\%, a further $-$2.23\% decline. The drift in the miss category is consistent with post-earnings announcement drift \citep{bernard1989post}.}
+\label{fig:drift}
+\end{figure}
+
+The drift is concentrated on the short side. Correctly predicted misses lose an additional 2.23 percentage points from day 1 to day 5 ($-$2.65\% $\to$ $-$4.88\%). The day-5 $t$-statistic for correct misses ($-$3.39) is significant at the 1\% level, providing evidence of predictable post-earnings drift on the short side of crowd predictions.
+
+\subsection{Trading Strategy Performance}
+
+I construct strategies based on crowd conviction and report all returns as \textit{strategy returns}: positive values indicate the strategy earned money. For long positions, the strategy return equals the asset's excess return; for short positions, the strategy return equals the negative of the asset's excess return (i.e., a stock decline of $-$5\% produces a strategy return of $+$5\%).
+
+Table~\ref{tab:strategies} reports the results. Panel~A presents a simple long/short strategy: go long events where \texttt{beat\_prob\_last} $> 0.70$ and short events where \texttt{beat\_prob\_last} $< 0.30$. Panel~B isolates the short side with progressively tighter probability thresholds.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Trading Strategy Performance}
+\label{tab:strategies}
+\begin{tabular}{lcccccccc}
+\toprule
+& & & \multicolumn{2}{c}{Day 1} & \multicolumn{2}{c}{Day 5} & \multicolumn{2}{c}{Day 10} \\
+\cmidrule(lr){4-5} \cmidrule(lr){6-7} \cmidrule(lr){8-9}
+Strategy & $n$ & Correct & Return & $t$ & Return & $t$ & Return & $t$ \\
+\midrule
+\multicolumn{9}{l}{\textit{Panel A: Long/Short Strategy}} \\
+Long (prob $> 0.70$) & 211 & 91.5\% & $+$0.42\% & 1.00 & $-$0.27\% & $-$0.48 & $+$0.10\% & 0.17 \\
+Short (prob $< 0.30$) & 23 & 78.3\% & $+$1.23\% & 0.67 & $+$3.87\% & 2.06 & $+$5.90\% & 2.88 \\
+Combined L/S & 234 & & $+$0.50\% & 1.19 & $+$0.14\% & 0.26 & $+$0.67\% & 1.17 \\
+\midrule
+\multicolumn{9}{l}{\textit{Panel B: Short-Only by Threshold (strategy returns)}} \\
+$P < 0.20$ & 13 & & $+$1.74\% & 0.72 & $+$5.93\% & 2.57 & $+$7.55\% & 2.68 \\
+$P < 0.25$ & 14 & & $+$2.82\% & 1.14 & $+$7.01\% & 2.93 & $+$8.51\% & 3.06 \\
+$P < 0.30$ & 23 & & $+$1.23\% & 0.67 & $+$3.87\% & 2.06 & $+$5.90\% & 2.88 \\
+$P < 0.35$ & 29 & & $+$1.05\% & 0.72 & $+$3.95\% & 2.40 & $+$5.64\% & 3.19 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Sample restricted to events with complete IBES match, flow data, and non-missing TAQ excess returns. All returns are strategy returns: for long positions, the SPY-excess asset return; for short positions, the negative of the SPY-excess asset return (positive values indicate the strategy earned money). Panel~A: the combined L/S is observation-weighted across all events in the strategy universe (211 long + 23 short), so it is dominated by the long side. Panel~B thresholds are cumulative ($P < 0.20$ is a subset of $P < 0.30$). $t$-statistics test $H_0$: mean return $= 0$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+Panel~A reveals that the combined long/short earns $+$0.50\% on day 1 ($t = 1.19$), below conventional significance. The long side earns $+$0.42\% ($t = 1.00$) and reverses by day 5 ($-$0.27\%), consistent with efficient pricing of positive surprises. The short side earns $+$1.23\% on day 1 (insignificant, $t = 0.67$), because the 22\% of events where the crowd's miss prediction was wrong dilute the gains from correct miss predictions. By day 5, however, the short side is strongly profitable ($+$3.87\%, $t = 2.06$, significant at 5\%) as the post-earnings drift takes hold, reaching $+$5.90\% by day 10 ($t = 2.88$).
+
+Panel~B isolates the short side with progressively tighter thresholds. At $P < 0.30$ ($n = 23$), the threshold matching Panel~A, the short-only strategy earns $+$1.23\% on day 1 (insignificant), $+$3.87\% by day 5 ($t = 2.06$, significant at 5\%), and $+$5.90\% by day 10 ($t = 2.88$). The drift is monotonically increasing, consistent with a gradual price correction as the market digests the earnings miss. Tightening the threshold to $P < 0.25$ ($n = 14$) increases the day-10 return to $+$8.51\% ($t = 3.06$), while broadening to $P < 0.35$ ($n = 29$) yields $+$5.64\% ($t = 3.19$), the most statistically significant result in the table. All day-5 and day-10 returns in Panel~B are significant at the 5\% level across thresholds.
+
+The bridging pattern between Panels~A and~B clarifies why the simple long/short appears weak while the isolated short side produces significant returns. The long side dilutes the combined strategy because positive earnings surprises are largely priced in by the close. The short side requires patience: the day-1 return is near zero, but the 5- to 10-day drift is substantial, consistent with limits to arbitrage on the short side \citep{shleifer1997limits}.
+
+\subsection{Linear Return Prediction}
+
+Cross-sectional regressions of day-1 excess returns on beat probability, flow imbalance, analyst surprise, and analyst dispersion yield no significant predictors other than pre-earnings stock volatility ($t = 2.76$, $p = 0.006$), which simply reflects that high-volatility stocks move more after earnings. The highest $R^2$ across specifications is 0.042. This confirms that the return signal is concentrated in the tails of the probability distribution (the threshold-based strategy of Panel~B) rather than distributed linearly across events.
+
+\subsection{Risk-Adjusted Returns: Fama--French Three-Factor Alpha}
+
+To confirm that the short-side returns are not compensation for systematic risk exposure, I estimate a Fama--French three-factor model \citep{fama1993common} on the short-only portfolio returns:
+\begin{equation}
+R_{p,t} - R_{f,t} = \alpha + \beta_{\text{MKT}} (R_{m,t} - R_{f,t}) + \beta_{\text{SMB}} \, \text{SMB}_t + \beta_{\text{HML}} \, \text{HML}_t + \varepsilon_t
+\end{equation}
+
+Table~\ref{tab:ff3} reports the results across probability thresholds at the 10-day horizon.
+
+\begin{table}[htbp]
+\centering
+\begin{threeparttable}
+\caption{Fama--French Three-Factor Alpha: Short-Only Portfolios (Day 10)}
+\label{tab:ff3}
+\begin{tabular}{lcccccc}
+\toprule
+Threshold & $n$ & $\hat{\alpha}$ (\%/day) & $t(\alpha)$ & $\hat{\beta}_{\text{MKT}}$ & $\hat{\beta}_{\text{SMB}}$ & $\hat{\beta}_{\text{HML}}$ \\
+\midrule
+$P < 0.20$ & 12 & $+$0.80 & 1.19 & $-$1.5 & $-$1.3 & $+$0.4 \\
+$P < 0.25$ & 13 & $+$0.98 & 1.48 & $-$1.3 & $-$1.9 & $+$0.6 \\
+$P < 0.30$ & 22 & $+$0.68 & 1.47 & $-$1.9 & $-$1.0 & $-$0.3 \\
+$P < 0.35$ & 28 & $+$0.76 & 1.94 & $-$1.9 & $-$0.8 & $-$0.2 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Pooled event-day regressions of short-only strategy returns on Fama--French three factors. $n$ reflects events with complete 10-day post-earnings return windows and daily factor data (one fewer than Panel~B of Table~\ref{tab:strategies} at each threshold due to missing factor coverage for one event). The negative $\hat{\beta}_{\text{MKT}}$ reflects the short portfolio's mechanical negative market exposure; this loading is significant at broader thresholds ($P < 0.30$, $P < 0.35$), while SMB and HML loadings are insignificant at all thresholds.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+Across all thresholds, the intercept $\hat{\alpha}$ is positive. The SMB and HML loadings are statistically insignificant at all thresholds. The market loading is negative (mechanically, since the portfolio is short), and significant at the broader thresholds ($P < 0.30$, $P < 0.35$), indicating that the short portfolio does carry market exposure; the positive alpha is estimated net of this exposure. The alphas are positive at all horizons and thresholds, with the strongest result at $P < 0.35$ ($t = 1.94$, $p = 0.054$), which approaches but does not reach conventional significance. The pattern is consistent with factor-neutral alpha, though the limited sample size warrants caution in interpreting these estimates.
+
+\subsection{Discussion: Why the Short Side?}
+
+The concentration of alpha on the short side is consistent with the \textit{limits of arbitrage} framework of \citet{shleifer1997limits}, and three mechanisms help explain why mispricing persists on the miss side.
+
+First, short-sale constraints impede the correction of overvalued expectations. Institutional investors face borrowing costs, uptick rules, and fiduciary constraints that make shorting more expensive and operationally complex than going long. When the prediction market crowd identifies that a stock will miss expectations, the equity market cannot fully incorporate this view because the marginal short-seller faces higher costs than the marginal buyer.
+
+Second, the analyst walk-down documented in Section~\ref{sec:accuracy} creates asymmetric surprise distributions. Because analysts systematically set a beatable floor ($\hat{\alpha} = +1.55$, $t = 5.88$), beats are the modal outcome, occurring in 81\% of events. The market partially prices in this tendency, so a confirmed beat generates a muted return ($+$0.74\% on day 1). A miss, however, contradicts both the analyst consensus \textit{and} the market's prior expectation of a beat, producing a larger price correction that takes several days to complete.
+
+Third, institutional herding amplifies the drift. \citet{hong2000security} show that analysts herd toward the consensus because deviating is costly to their careers. When the consensus converges on an overly optimistic estimate, no individual analyst has signaled the miss, and the subsequent correction is larger precisely because the information arrives as a surprise to the entire institutional ecosystem. The prediction market, populated by pseudonymous traders with no career concerns, aggregates the bearish views that the institutional infrastructure suppresses.
+
+The 10-day drift pattern---from $+$1.23\% on day 1 to $+$5.90\% by day 10 for the $P < 0.30$ short-only strategy---is consistent with the post-earnings announcement drift documented by \citet{bernard1989post} and \citet{livnat2006comparing}. \citet{martineau2022pead} argues that PEAD has largely disappeared from non-microcap stocks in recent decades; the fact that I detect significant drift conditional on low prediction market beat probability suggests that the crowd identifies a specific subset of events where the market remains slow to correct, even if unconditional PEAD has attenuated. What is novel is the ex-ante identification mechanism: the prediction market probability provides a tradeable signal that selects the events where the drift is most pronounced.
+
+%======================================================================
+\section{Microstructure and Behavioral Archetypes: On-Chain Trader Profiling} \label{sec:micro}
+%======================================================================
+
+A distinctive feature of blockchain-settled prediction markets is that every trade is attributable to a persistent on-chain address. Unlike CLOB-based exchanges where order flow is anonymous, Polymarket's settlement on the Polygon blockchain allows the researcher to construct wallet-level trading histories and test whether the crowd's accuracy is driven by a small set of informed participants or by broad-based aggregation. This section exploits this transparency to identify and profile ``smart money'' wallets, to characterize the behavioral mechanisms underlying prediction market accuracy, and to provide the first direct test of the marginal trader hypothesis \citep{forsythe1992anatomy} using wallet-level data from a blockchain-settled financial market.
+
+The marginal trader hypothesis holds that prediction market accuracy is not the product of the median participant's wisdom but of a small cohort of informed traders who correct mispricings introduced by noise traders. \citet{rothschild2016trading} document this pattern in political prediction markets, showing that a minority of sophisticated participants drives price discovery while the majority trades on sentiment. If the same mechanism operates in financial prediction markets, then the crowd's calibration results documented in Section~\ref{sec:accuracy} should be attributable to a small number of skilled wallets, and the trading behavior of those wallets should reveal the nature of their informational advantage.
+
+\subsection{Identifying Smart Money}
+
+I aggregate the 11.1 million on-chain trades to the wallet level, computing each address's hit rate (fraction of earnings markets where the wallet's net position correctly predicted the outcome), breadth (number of distinct earnings markets traded), and dollar volume. To avoid classifying noise traders as informed, I impose three sequential filters:
+\begin{enumerate}
+\item \textbf{Breadth}: the wallet must have traded at least 15 distinct earnings markets, ensuring sufficient breadth for statistical evaluation of hit rates.
+\item \textbf{Volume}: the wallet's total volume must fall in the top quartile of the breadth-filtered group, ensuring that the wallet's trades are economically significant rather than trivial.
+\item \textbf{Accuracy}: the wallet's hit rate must fall in the top decile of the volume-filtered group, isolating genuinely skilled participants from those whose accuracy is consistent with chance given the 81\% base rate.
+\end{enumerate}
+
+This yields 22 ``smart wallets'' from a universe of nearly 3,000 active earnings addresses (218 of which pass the breadth and volume filters).
+
+The 22 smart wallets achieve a pooled hit rate of 94.1\% on earnings markets (898 of 954 market-level calls correct), compared to an 81\% sample beat rate. Because wallets were selected partly on accuracy, this pooled rate is conditional on the selection criterion and cannot support a valid in-sample significance test; out-of-sample validation using future earnings seasons would provide a cleaner test of persistent skill. Their volume share is modest: smart wallets account for approximately 12\% of qualified-wallet volume and 6\% of total earnings market volume, indicating that accuracy is not merely a function of market-moving capital. Smart wallets trade against the prevailing price direction 15\% of the time, consistent with contrarian informed trading \citep{kyle1985continuous}.
+
+\subsection{Incremental Predictive Content of Smart Wallet Flow}
+
+Incorporating smart wallet flow into the predictive models from Section~\ref{sec:accuracy} yields incremental information. A logistic regression that augments the baseline flow imbalance specification with a smart wallet imbalance variable achieves the lowest AIC among all model specifications. When smart wallet flow disagrees with the aggregate price signal (44 of 309 markets where smart wallets participated), the smart wallets are correct 84\% of the time versus 16\% for the price, suggesting that these addresses possess genuine private information rather than simply piggybacking on public signals.
+
+This pattern is consistent with the toxic flow framework of \citet{easley2012flow}: smart wallet order flow carries adverse selection risk for the counterparties who take the other side. In the equity microstructure literature, toxic flow refers to informed order flow that systematically disadvantages uninformed liquidity providers. In the prediction market context, smart wallet flow functions analogously: when a smart wallet sells yes tokens on a market where the price implies a high beat probability, the counterparty who buys those tokens is, on average, acquiring a contract that will expire worthless. The concentration of smart wallet flow on the correct side of the outcome---94.1\% of the time---is direct evidence that this flow carries private information about the fundamental earnings outcome.
+
+\subsection{The Insider Trading Concern}
+
+The identification of 22 statistically distinguished wallets raises an immediate concern: are these simply insiders trading on material non-public information? If so, the ``crowd wisdom'' documented in this paper would reduce to a euphemism for insider trading, and the policy implications would be fundamentally different. To address this concern, I profile each wallet across the full universe of Polymarket activity---not just earnings markets---using the Dome API's wallet, profit-and-loss, and order history endpoints.
+
+\subsubsection{Anonymity and the Absence of Institutional Identity}
+
+All 22 smart wallets are completely anonymous. None carries a public ENS handle, pseudonym, or profile image; they operate as bare hexadecimal addresses on the Polygon blockchain. This anonymity is itself informative: prominent institutional participants and known ``whales'' on Polymarket typically register handles and cultivate public profiles to attract copy-traders. The absence of any public identity among the 22 addresses suggests that these are not well-resourced institutional desks deploying systematic strategies across the platform.
+
+More revealing is the variance in overall profitability. While 77\% of the smart wallets (17 of 22) are profitable across all Polymarket markets, with a mean cumulative profit and loss of \$2,246, the distribution is heavily dispersed. One wallet has earned \$29,137 cumulatively; another has lost \$78,537 despite a 96\% earnings hit rate. Five of the 22 wallets---nearly a quarter---show negative cumulative PnL across all markets even as they maintain 89--96\% accuracy on earnings. This pattern is difficult to reconcile with a broad insider trading hypothesis in which these wallets possess systematic access to material non-public information. An actor with such access would not simultaneously hemorrhage capital on other prediction markets; their informational advantage would, if anything, extend to adjacent domains such as revenue guidance or product launches. The observed pattern is instead consistent with domain-specific skill that does not transfer across market types. That said, this evidence does not definitively rule out narrow insider trading on earnings specifically---it weakens the ``omniscient insider'' story but cannot exclude the possibility that some wallets possess material non-public information about particular companies' earnings while lacking an edge elsewhere.
+
+\subsection{Archetype A: The Domain-Specific Specialist}
+
+Wallet \texttt{0xdebb...eedb} exemplifies the behavioral specialist archetype. This address achieves 96\% accuracy across 119 distinct earnings beat/miss markets, placing it firmly in the top decile of informed participants. Yet its cumulative PnL across all Polymarket activity is $-$\$78,537, the largest loss in the smart wallet cohort, accumulated across 1,988 total markets and 8,549 trades with \$2.8 million in total volume.
+
+This profile is consistent with the overconfidence bias documented in the behavioral finance literature \citep{daniel1998investor}. The trader possesses genuine, specialized alpha in equity valuation---likely derived from deep fundamental analysis of corporate earnings---and deploys this edge with high accuracy on a narrow set of markets where the informational advantage is real. The error lies in the implicit assumption that this domain-specific skill generalizes to other prediction markets (geopolitical events, cryptocurrency prices, cultural outcomes) where the same fundamental toolkit does not apply. The result is severe capital bleed outside the trader's circle of competence---the behavioral cost of miscalibrated self-assessment.
+
+The domain-specific specialist archetype has important implications for the marginal trader hypothesis. In Forsythe et al.'s original formulation, the marginal trader is implicitly assumed to be a generalist who corrects mispricings across all markets. The \texttt{0xdebb} profile reveals a more nuanced reality: the marginal trader who drives accuracy in earnings markets may be a specialist whose informational advantage is confined to a single domain. The crowd's wisdom, then, is not the product of broadly informed participants but of narrowly skilled ones whose expertise happens to match the market in question. This is closer to the ``division of cognitive labor'' model of \citet{page2012prediction} than to the omniscient informed trader of \citet{kyle1985continuous}.
+
+\subsection{Archetype B: The Algorithmic Liquidity Provider}
+
+Wallet \texttt{0x2c45...4790} presents a sharply different behavioral profile. This address has participated in 14,638 distinct markets with \$1.4 million in total volume and 25,733 trades, yielding a cumulative PnL of \$356. On earnings specifically, it achieves a 94\% hit rate across 324 earnings-related slugs, yet this accuracy generates negligible profit because the wallet's primary function is not directional betting.
+
+The signature of this wallet---extremely high market breadth, very large trade counts, near-zero net PnL---is consistent with algorithmic liquidity provision \citep{menkveld2013high}. This address operates as a decentralized market maker, programmatically quoting on both sides of prediction markets, earning the bid-ask spread rather than taking directional fundamental positions. Its high earnings accuracy is likely a byproduct of the same quantitative infrastructure: an algorithm that prices binary events using public information (analyst estimates, historical surprise distributions, implied volatility) will mechanically achieve a high hit rate on earnings markets where the base rate itself is 81\%. The marginal contribution to price discovery is not directional conviction but rather continuous liquidity that allows other participants---including the domain-specific specialists of Archetype~A---to express their views at tight spreads.
+
+The liquidity provider archetype is the prediction market analog of the designated market maker in equity markets. \citet{menkveld2013high} documents that a single high-frequency market maker on Chi-X Europe participates in approximately 75\% of trades, profits per trade are small, and the aggregate contribution to price discovery is primarily through the provision of continuous quotes rather than directional positioning. The \texttt{0x2c45} wallet exhibits the same behavioral fingerprint in the prediction market context: ubiquitous participation, near-zero net PnL, and accuracy that derives from mechanical base-rate pricing rather than fundamental insight.
+
+\subsection{The Rare Exception: The Quantitative Generalist}
+
+Wallet \texttt{0xafb8...d9c1} represents the rare exception: a highly capitalized directional trader with both domain-specific accuracy (97\% on 72 earnings markets) and positive overall PnL (\$29,137 across 1,168 markets and \$1.7 million in volume). This wallet trades a broader but still selective set of markets and maintains profitability outside earnings, suggesting a more generalizable quantitative approach. However, even this wallet's overall PnL is modest relative to its volume---on the order of 1.7\% of capital deployed---indicating that sustained edge on prediction markets is difficult to maintain even for the most skilled participants. The rarity of this archetype (one wallet out of 22) underscores the general finding that domain-specific skill, not generalized intelligence, is the modal source of smart money accuracy.
+
+\subsection{Implications for the Marginal Trader Hypothesis}
+
+The profiling analysis provides a direct empirical test of the marginal trader hypothesis in a financial prediction market. The results partially confirm and partially revise the hypothesis.
+
+\textit{Confirmation}: A small minority of participants---22 wallets out of more than 1,000 active earnings traders---drives a disproportionate share of accurate price discovery. Smart wallets account for 3.4\% of total earnings market volume but achieve a pooled hit rate of 94.1\%, well above the 81\% base rate. When smart wallet flow disagrees with the aggregate signal, the smart wallets are correct two-thirds of the time. This is precisely what \citet{forsythe1992anatomy} and \citet{rothschild2016trading} predict: market accuracy is driven by a skilled minority, not by the wisdom of the average participant.
+
+\textit{Revision}: The marginal trader is not a monolith. The ``wisdom'' that corrects retail mispricing and drives the calibration results documented in Section~\ref{sec:accuracy} emerges from at least two distinct participant types: domain-specific specialists trading on fundamental conviction, and delta-neutral algorithms providing liquidity against retail momentum. Neither archetype is consistent with the insider trading critique. The specialists possess real but narrow alpha that does not transfer; the algorithms possess broad coverage but no directional edge. The crowd's accuracy is best understood not as the product of a few omniscient actors but as the emergent property of a heterogeneous ecosystem where specialized information and automated liquidity provision jointly produce well-calibrated prices.
+
+This heterogeneity has implications for the toxic flow interpretation. In the equity microstructure literature, toxic flow is typically modeled as a single type of informed order flow \citep{easley2012flow}. In the prediction market context, toxicity is archetype-dependent: the domain specialist's flow is genuinely toxic (it carries private fundamental information about the earnings outcome), while the algorithmic market maker's flow is not toxic (it carries no directional information but provides the liquidity that makes the specialist's information expressible in prices). A model of prediction market microstructure that treats all ``smart money'' flow as informationally equivalent would miss this distinction.
+
+%======================================================================
+\section{Conclusion} \label{sec:conclusion}
+%======================================================================
+
+This paper provides a systematic evaluation of prediction market accuracy for corporate earnings events, combining crowd-level calibration analysis with wallet-level behavioral profiling enabled by blockchain settlement. Using 338 markets from Polymarket matched to IBES analyst consensus forecasts, and applying microstructure corrections including stock-split adjustments, accounting basis isolation, and look-ahead bias prevention for before-market-open announcements, I document four findings that, taken together, shift the interpretation of prediction market accuracy from ``wisdom of the crowds'' to something more precise: the \textit{discipline of the whales}.
+
+First, the analyst consensus is systematically biased. A pooled OLS regression of actual EPS on consensus mean yields $\hat{\alpha} = +1.55$ ($t = 5.88$), consistent with the analyst walk-down documented by \citet{richardson2004walk} and \citet{matsumoto2002management}. The consensus is not a best estimate but a systematically depressed floor, which creates a structural need for an unbiased information aggregator.
+
+Second, the prediction market crowd fills that role with considerable accuracy. The crowd is well calibrated (Brier score 0.124), and when order flow is strongly directional (top quintile), the beat rate reaches 98.5\%. For non-GAAP earnings, the crowd's implied point estimates improve on the consensus by 2.3\% in mean absolute error. Much of this advantage reflects information recency: the IBES academic extract carries a median staleness of 20 days before the announcement, a gap that partly reflects the monthly refresh cycle of the Summary file and partly the corporate quiet period during which management guidance ceases and analyst revision rates slow. The prediction market trades continuously through this window, allowing participants to price in late-breaking data that the published consensus is slow to reflect. The crowd's advantage is concentrated in pricing operating fundamentals rather than accounting items.
+
+Third, this informational advantage translates into economically significant returns on the short side. A short-only strategy based on low beat probability ($P < 0.30$, $n = 23$) earns $+$5.90\% in strategy returns by day 10 ($t = 2.88$), with positive Fama--French three-factor alpha (though not reaching conventional significance at all thresholds) and statistically insignificant market, size, and value factor loadings. The alpha is concentrated entirely on the short side; long-only positions based on high beat probability do not earn significant returns. The short-side concentration is consistent with the limits-to-arbitrage framework: short-sale constraints prevent the equity market from fully incorporating the crowd's bearish signal, producing a gradual price correction that takes 5 to 10 trading days to materialize.
+
+Fourth, and most distinctively, on-chain wallet profiling reveals that prediction market accuracy is not driven by a monolithic class of insiders. Among 22 smart wallets identified by breadth, volume, and accuracy filters (pooled hit rate of 94.1\%), the behavioral profiles are heterogeneous. Domain-specific fundamental specialists achieve high earnings accuracy but lose capital on non-earnings markets, consistent with narrow expertise rather than systematic inside information. Algorithmic liquidity providers participate across thousands of markets with near-zero net PnL, contributing not directional conviction but the continuous liquidity that allows informed flow to be expressed in prices. The rare quantitative generalist who maintains profitability across market types is the exception, not the rule. The crowd's accuracy emerges from the interaction of these distinct participant types---a finding that partially confirms and partially revises the marginal trader hypothesis of \citet{forsythe1992anatomy}.
+
+The reframing from ``crowd wisdom'' to ``whale discipline'' is not merely semantic. If prediction market accuracy were truly the product of broad-based aggregation---many independent, moderately informed participants whose errors cancel---then accuracy should be robust to changes in participant composition and should not depend on the presence of any particular trader type. The finding that 22 wallets with 6\% of volume drive a disproportionate share of accurate price discovery suggests a more fragile mechanism: remove the specialists and the liquidity providers, and the crowd's calibration would likely deteriorate. This has implications for platform design, regulatory oversight, and the portability of prediction market accuracy across domains where the relevant specialists may or may not participate.
+
+Several limitations warrant mention. The sample covers approximately five months of Polymarket earnings markets (late 2025 through early 2026), yielding 338 IBES-matched events (297 with complete 10-day post-earnings returns). While sufficient for calibration, disagreement, and bias analyses, the power of return tests is limited by the number of short-side events ($n = 23$ at the primary threshold). The wallet profiling analysis is similarly constrained: with 22 smart wallets, the archetype classification is illustrative rather than statistically validated, and longer sample periods may reveal additional behavioral patterns. The underlying data reside on a public blockchain, and the base strategy signal---beat probability below a threshold---is observable by any market participant who monitors prediction market prices before earnings announcements, though the flow-enhanced version requires trade-level directional classification from the on-chain record or a comparable data source. Future work should extend the sample to confirm persistence across additional earnings seasons and investigate whether smart wallet flow can be used as a real-time trading signal. Polymarket also hosts ``Up or Down After Earnings'' markets, which allow traders to bet directly on the stock price direction following an announcement; analyzing these contracts alongside the EPS beat/miss markets studied here would connect the crowd's earnings classification accuracy to its ability to predict stock returns, closing the gap between the calibration results in Section~\ref{sec:accuracy} and the return analysis in Section~\ref{sec:returns}. Finally, examining whether the behavioral archetypes identified here, the domain specialist and the algorithmic liquidity provider, appear in other prediction market verticals would test the generalizability of the contrarian minority mechanism.
+
+\bigskip
+
+\noindent\textbf{Disclosure.} The author invested in Dome API (acquired by Polymarket) through the a16z scout program.
+
+\newpage
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
