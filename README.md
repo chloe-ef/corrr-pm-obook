@@ -1,4 +1,4 @@
-# 390_paper — Minority Report: Contrarian Traders, Prediction Markets, and the Return of Post-Earnings Drift
+# Minority Report: Contrarian Traders, Prediction Markets, and the Return of Post-Earnings Drift
 
 Does prediction market crowd flow reveal independent information about earnings outcomes beyond analyst consensus?
 
@@ -19,21 +19,15 @@ PM crowd trading flow (11.1M trades across buy/sell × yes/no) reveals whether t
 
 ## Reproducibility: Frozen Data
 
-All processed data files used in the paper are committed in the `data/` directory with SHA-256 checksums (`data/SHA256SUMS`). **To reproduce the paper's results, use these frozen files directly rather than re-running the build scripts.** Re-pulling from WRDS or the Dome API may return different data due to backfills, restatements, or API changes.
+All processed data files used in the paper are committed in `data/` with SHA-256 checksums (`data/SHA256SUMS`). **Analysis scripts read directly from `data/`.** Re-pulling from WRDS or the Dome API may return different data due to backfills, restatements, or API changes.
 
 ### Quick start (analysis only, no credentials needed)
 
 ```bash
-cd ~/Documents/git/corrr/390_paper
-
-# Copy frozen data to your dataLAN build directory
-# (or update script paths to read from data/ directly)
-mkdir -p ~/Documents/data/corrr/390_paper/build
+# Create output directory for figures and results
 mkdir -p ~/Documents/data/corrr/390_paper/analysis
-cp data/*.rds ~/Documents/data/corrr/390_paper/build/
-cp data/*.csv ~/Documents/data/corrr/390_paper/analysis/
 
-# Run analysis scripts (no WRDS or API credentials required)
+# Run analysis scripts — all read from frozen data/ in the repo
 Rscript 02_analysis/00_data_audit.R
 Rscript 02_analysis/01_descriptive.R
 Rscript 02_analysis/02_calibration.R
@@ -44,6 +38,7 @@ pip install -r requirements.txt
 python 02_analysis/06_implied_eps.py
 Rscript 02_analysis/07_wallet_analysis.R
 Rscript 02_analysis/08_ff_alpha.R
+Rscript 02_analysis/10_oneshot_wallet_forensics.R
 
 # Compile paper
 cd 03_paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
@@ -63,6 +58,7 @@ cd 03_paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 | `market_classification.rds` | Market slug classification | `01_import.R` |
 | `hourly_market_probabilities.rds` | Hourly VWAP probabilities | `01_import.R` |
 | `implied_eps_results.csv` | Implied EPS output (Methods A + B) | `06_implied_eps.py` |
+| `oneshot_wallet_profiles.rds` | Dome API trade histories for 282 flagged wallets | `05_pull_oneshot_wallets.R` |
 | `SHA256SUMS` | Checksums to verify file integrity | |
 
 ### Verifying data integrity
@@ -73,39 +69,27 @@ cd data && shasum -a 256 -c SHA256SUMS
 
 ### What is NOT included
 
-- **`dome_trades_combined.rds`** (~6GB raw trade data): Too large for git. Required only for `01_import.R`, `02_parse_dome_events.R`, and `07_wallet_analysis.R`. Contact the author for access.
-- **Dome API wallet profiles**: `09_smart_wallet_profiles.R` requires a Dome API key. Dome was acquired by Polymarket; API availability is uncertain. The wallet addresses and statistics cited in the paper are from a point-in-time API pull.
+- **`dome_trades_combined.rds`** (~186MB raw trade data): Too large for git. Required only for `07_wallet_analysis.R` and `10_oneshot_wallet_forensics.R`. Contact the author for access.
+- **Dome API wallet profiles**: `09_smart_wallet_profiles.R` requires a Dome API key. Dome was acquired by Polymarket; API availability is uncertain.
 
 ## Directory Structure
 
-This project uses a **dataLAN/codeLAN separation**: scripts live in the git repo, while working data and output files live in a parallel directory outside the repo. The frozen `data/` directory in the repo provides a reproducible starting point.
-
 ```
-~/Documents/git/corrr/390_paper/     # codeLAN (this repo)
-├── 01_build/                        # Build scripts (for re-pulling from source)
-├── 02_analysis/                     # Analysis scripts
-├── 03_paper/                        # LaTeX source
-├── 04_citations/                    # Citation notes
-├── data/                            # Frozen processed data (committed)
-├── requirements.txt                 # Python dependencies
+├── 01_build/          # Build scripts (for re-pulling from source)
+├── 02_analysis/       # Analysis scripts (read from data/)
+├── 03_paper/          # LaTeX source
+├── 04_citations/      # Citation notes and PDFs
+├── data/              # Frozen processed data (committed, checksummed)
+├── requirements.txt   # Python dependencies
 └── README.md
-
-~/Documents/data/corrr/390_paper/    # dataLAN (working directory, not in git)
-├── build/                           # Working .rds files (copy from data/)
-├── analysis/                        # Figures + CSV output
-└── import/                          # Raw trade data (dome_trades_combined.rds)
 ```
 
-### Adapting paths for your machine
-
-All R scripts reference `~/Documents/data/corrr/390_paper/build` and `~/Documents/data/corrr/390_paper/analysis` for reading/writing data. The LaTeX file uses absolute paths to `~/Documents/data/corrr/390_paper/analysis/` for `\includegraphics`. To adapt:
-
-> Search all `.R`, `.py`, and `.tex` files under `390_paper/` for the path `~/Documents/data/corrr/390_paper` (and its expanded form `/Users/chloe_1.0/Documents/data/corrr/390_paper`). Replace every occurrence with `<YOUR_DATA_DIR>`, where `<YOUR_DATA_DIR>` is the absolute path to a directory on your machine with `build/`, `analysis/`, and `import/` subdirectories. In `.tex` files, also update `\includegraphics` paths accordingly.
+Analysis outputs (figures, result RDS files) are written to `~/Documents/data/corrr/390_paper/analysis/`. To change this path, search all `.R`, `.py`, and `.tex` files for `analysis_dir` and update accordingly.
 
 ## Prerequisites
 
 - **R 4.x** with packages: `data.table`, `readxl`, `quantmod`, `ggplot2`, `fixest`, `RPostgres`, `DBI`
-- **Python 3.9+** with packages listed in `requirements.txt` (`pip install -r requirements.txt`)
+- **Python 3.9+** with packages listed in `requirements.txt`
 - **WRDS credentials** (only if re-pulling from source): `wrds_username`, `wrds_password` environment variables
 - **Dome API key** (only for `09_smart_wallet_profiles.R`): `dome_api_key` environment variable
 
@@ -114,12 +98,13 @@ All R scripts reference `~/Documents/data/corrr/390_paper/build` and `~/Document
 ### Build (`01_build/`) — only needed to re-pull from source
 | Script | What it does | Output |
 |--------|-------------|--------|
-| `01_import.R` | Copies dome_trades_combined.rds + ref CSVs, rebuilds classification + hourly probs | build/market_classification.rds, build/hourly_market_probabilities.rds |
-| `02_parse_dome_events.R` | Parses EPS targets from slugs, computes crowd flow metrics | build/dome_eps_events.rds |
-| `03_pull_ibes.R` | Pulls IBES consensus + actuals from WRDS | build/ibes_data.rds, build/ibes_history.rds |
-| `03b_pull_taq.R` | Pulls TAQ 5-min bars from WRDS, aggregates to daily + SPY index | build/equity_daily_returns.rds, build/index_daily_returns.rds |
-| `04_build_event_panel.R` | Merges all sources into analysis panel | build/event_panel.rds |
-| `05_pull_ff.R` | Downloads daily Fama-French 3-factor data | build/ff_daily.rds |
+| `01_import.R` | Copies dome_trades_combined.rds + ref CSVs, rebuilds classification + hourly probs | market_classification.rds, hourly_market_probabilities.rds |
+| `02_parse_dome_events.R` | Parses EPS targets from slugs, computes crowd flow metrics | dome_eps_events.rds |
+| `03_pull_ibes.R` | Pulls IBES consensus + actuals from WRDS | ibes_data.rds, ibes_history.rds |
+| `03b_pull_taq.R` | Pulls TAQ 5-min bars from WRDS, aggregates to daily + SPY index | equity_daily_returns.rds, index_daily_returns.rds |
+| `04_build_event_panel.R` | Merges all sources into analysis panel | event_panel.rds |
+| `05_pull_ff.R` | Downloads daily Fama-French 3-factor data | ff_daily.rds |
+| `05_pull_oneshot_wallets.R` | Pulls full trade histories from Dome API for flagged wallets | oneshot_wallet_profiles.rds |
 
 ### Analysis (`02_analysis/`)
 | Script | What it does |
@@ -134,6 +119,7 @@ All R scripts reference `~/Documents/data/corrr/390_paper/build` and `~/Document
 | `07_wallet_analysis.R` | Smart wallet identification, logistic regressions, disagreement analysis |
 | `08_ff_alpha.R` | Fama-French 3-factor alpha regressions (pooled event-day + calendar-time) |
 | `09_smart_wallet_profiles.R` | Dome API wallet profiles, PnL time series, archetype classification |
+| `10_oneshot_wallet_forensics.R` | Low-activity wallet forensic analysis for insider trading patterns |
 
 ### Paper (`03_paper/`)
 Compile with: `pdflatex main && bibtex main && pdflatex main && pdflatex main`
@@ -147,5 +133,4 @@ Compile with: `pdflatex main && bibtex main && pdflatex main && pdflatex main`
 - Winsorize returns at 2nd/98th percentile
 - One row per market (both GAAP and non-GAAP kept if same ticker/date)
 - Equity returns from WRDS TAQ 5-min bars aggregated to daily
-- Data and code kept in separate directory trees (dataLAN/codeLAN)
 - Processed data frozen and committed for reproducibility
